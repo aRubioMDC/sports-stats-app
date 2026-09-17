@@ -1,8 +1,11 @@
 """Compute Linemate-style hit-rate trend signals per (player, stat, threshold),
 using the same small-sample blending rule as team stats.
+
+Preloads all weekly stats and existing trend signals up front instead of
+querying per player/stat/threshold — see ingest_player_stats.py for why.
 """
 
-from sqlalchemy.orm import Session
+from collections import defaultdict
 
 from app.config import settings
 from app.db import SessionLocal
@@ -19,30 +22,31 @@ DEFAULT_THRESHOLDS = {
 }
 
 
-def _weeks_played(db: Session, player_id: int, season: int) -> int:
-    return (
-        db.query(PlayerWeeklyStat)
-        .filter(PlayerWeeklyStat.player_id == player_id, PlayerWeeklyStat.season == season)
-        .count()
-    )
-
-
 def compute_trends(current_season: int) -> None:
     db = SessionLocal()
     try:
         players = db.query(Player).filter(Player.sport == "nfl").all()
+
+        logs_by_player: dict[int, list[PlayerWeeklyStat]] = defaultdict(list)
+        for stat in (
+            db.query(PlayerWeeklyStat)
+            .join(Player)
+            .filter(Player.sport == "nfl")
+            .order_by(PlayerWeeklyStat.season.desc(), PlayerWeeklyStat.week.desc())
+            .all()
+        ):
+            logs_by_player[stat.player_id].append(stat)
+
+        existing_signals = {
+            (s.player_id, s.stat_name, s.threshold): s
+            for s in db.query(PlayerTrendSignal).filter(PlayerTrendSignal.sport == "nfl").all()
+        }
+
         for player in players:
-            weeks_played = _weeks_played(db, player.id, current_season)
+            all_logs = logs_by_player.get(player.id, [])
+            weeks_played = sum(1 for g in all_logs if g.season == current_season)
             window = get_stat_window(current_season, weeks_played)
-            game_logs = (
-                db.query(PlayerWeeklyStat)
-                .filter(
-                    PlayerWeeklyStat.player_id == player.id,
-                    PlayerWeeklyStat.season.in_(window.seasons_included),
-                )
-                .order_by(PlayerWeeklyStat.season.desc(), PlayerWeeklyStat.week.desc())
-                .all()
-            )
+            game_logs = [g for g in all_logs if g.season in window.seasons_included]
             if not game_logs:
                 continue
 
@@ -51,25 +55,20 @@ def compute_trends(current_season: int) -> None:
             for stat_name in STAT_NAMES:
                 for threshold in DEFAULT_THRESHOLDS[stat_name]:
                     hits = sum(1 for g in recent_form_games if getattr(g, stat_name) > threshold)
-                    signal = (
-                        db.query(PlayerTrendSignal)
-                        .filter(
-                            PlayerTrendSignal.player_id == player.id,
-                            PlayerTrendSignal.stat_name == stat_name,
-                            PlayerTrendSignal.threshold == threshold,
-                        )
-                        .one_or_none()
-                    )
+                    signal_key = (player.id, stat_name, threshold)
+                    signal = existing_signals.get(signal_key)
                     if signal is None:
                         signal = PlayerTrendSignal(
                             sport="nfl", player_id=player.id, stat_name=stat_name, threshold=threshold
                         )
                         db.add(signal)
+                        existing_signals[signal_key] = signal
                     signal.window_mode = window.window_mode
                     signal.recent_form_hits = hits
                     signal.recent_form_games = len(recent_form_games)
         db.commit()
     finally:
+
         db.close()
 
 

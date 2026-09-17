@@ -103,12 +103,12 @@ def ingest_team_stats(current_season: int) -> None:
             rows[abbr] = {
                 "weeks_played": weeks_played_by_team.get(abbr, 0),
                 "window_mode": window.window_mode,
-                "points_per_game": sum(points) / n,
-                "yards_per_game": team_games["yards"].sum() / n,
-                "time_of_possession_seconds_per_game": team_games["top_seconds"].sum() / n,
-                "def_sacks_total": team_games["def_sacks"].sum(),
-                "def_interceptions_total": team_games["def_interceptions"].sum(),
-                "turnover_differential_total": team_games["turnover_differential"].sum(),
+                "points_per_game": float(sum(points) / n),
+                "yards_per_game": float(team_games["yards"].sum() / n),
+                "time_of_possession_seconds_per_game": float(team_games["top_seconds"].sum() / n),
+                "def_sacks_total": float(team_games["def_sacks"].sum()),
+                "def_interceptions_total": float(team_games["def_interceptions"].sum()),
+                "turnover_differential_total": float(team_games["turnover_differential"].sum()),
             }
 
         # Rank each stat 1..32 (1 = best) across all teams for this refresh.
