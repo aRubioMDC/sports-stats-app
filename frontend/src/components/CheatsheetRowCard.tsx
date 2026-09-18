@@ -1,11 +1,5 @@
 import type { CheatsheetRow } from "../api";
-
-const STAT_LABELS: Record<string, string> = {
-  receptions: "Receptions",
-  receiving_yards: "Rec Yards",
-  rushing_yards: "Rush Yards",
-  passing_yards: "Pass Yards",
-};
+import { formatTrendLine } from "../lib/statLabels";
 
 export function CheatsheetRowCard({ row }: { row: CheatsheetRow }) {
   return (
@@ -15,9 +9,7 @@ export function CheatsheetRowCard({ row }: { row: CheatsheetRow }) {
         <div className="text-xs text-white/40">{row.team}</div>
       </div>
       <div className="text-right">
-        <div className="text-sm text-white/80">
-          {row.direction === "over" ? "Over" : "Under"} {row.threshold} {STAT_LABELS[row.stat_name] ?? row.stat_name}
-        </div>
+        <div className="text-sm text-white/80">{formatTrendLine(row.stat_name, row.threshold, row.direction)}</div>
         <div className="text-xs font-semibold text-emerald-400">
           {row.hits}/{row.games} ({Math.round(row.hit_rate * 100)}%)
         </div>

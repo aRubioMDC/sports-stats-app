@@ -1,6 +1,17 @@
 const API_BASE = "/api";
-// No sport switcher yet — the backend supports multiple sports, the UI only exposes NFL for now.
+// No sport switcher wired to real data yet — only NFL is registered on the backend.
 const DEFAULT_SPORT = "nfl";
+
+export interface Sport {
+  slug: string;
+  display_name: string;
+}
+
+export interface Config {
+  current_season: number;
+  current_week: number;
+  last_updated: string | null;
+}
 
 export interface Team {
   id: number;
@@ -56,6 +67,42 @@ export interface CheatsheetRow {
   hits: number;
   games: number;
   hit_rate: number;
+  without_player?: string | null;
+  opponent_rank?: number | null;
+  opponent_team_count?: number | null;
+}
+
+export interface TeamGeneralStats {
+  points_per_game: number;
+  points_per_game_rank: number;
+  yards_per_game: number;
+  yards_per_game_rank: number;
+}
+
+export interface BoardGame {
+  game: Game;
+  home_form: string[];
+  away_form: string[];
+  home_stats: TeamGeneralStats | null;
+  away_stats: TeamGeneralStats | null;
+  top_trends: CheatsheetRow[];
+}
+
+export interface TrendGroups {
+  recent_form: CheatsheetRow[];
+  versus_opponent: CheatsheetRow[];
+  alternate_lines: CheatsheetRow[];
+  home_away_splits: CheatsheetRow[];
+  unders_only: CheatsheetRow[];
+  team_form: CheatsheetRow[];
+  injury_impact: CheatsheetRow[];
+  opponent_rank: CheatsheetRow[];
+}
+
+export interface Parlay {
+  legs: CheatsheetRow[];
+  summary_hits: number;
+  summary_games: number;
 }
 
 async function getJson<T>(path: string): Promise<T> {
@@ -66,7 +113,17 @@ async function getJson<T>(path: string): Promise<T> {
   return res.json() as Promise<T>;
 }
 
+async function postJson<T>(path: string): Promise<T> {
+  const res = await fetch(`${API_BASE}${path}`, { method: "POST" });
+  if (!res.ok) {
+    throw new Error(`Request failed: ${res.status} ${path}`);
+  }
+  return res.json() as Promise<T>;
+}
+
 export const api = {
+  getSports: () => getJson<Sport[]>("/sports"),
+  getConfig: () => getJson<Config>(`/${DEFAULT_SPORT}/config`),
   getGames: (season: number, week: number) =>
     getJson<Game[]>(`/${DEFAULT_SPORT}/games?season=${season}&week=${week}`),
   getMatchup: (gameId: number) => getJson<MatchupContext>(`/${DEFAULT_SPORT}/games/${gameId}/matchup`),
@@ -74,4 +131,9 @@ export const api = {
     getJson<CheatsheetRow[]>(
       `/${DEFAULT_SPORT}/trends/cheatsheet?min_hit_rate=${minHitRate}&min_games=${minGames}`,
     ),
+  getBoard: (season: number, week: number) =>
+    getJson<BoardGame[]>(`/${DEFAULT_SPORT}/board?season=${season}&week=${week}`),
+  getTrendGroups: () => getJson<TrendGroups>(`/${DEFAULT_SPORT}/trends/groups`),
+  getParlays: (gameId: number) => getJson<Parlay[]>(`/${DEFAULT_SPORT}/games/${gameId}/parlays`),
+  refreshScores: () => postJson<{ last_updated: string }>(`/${DEFAULT_SPORT}/refresh`),
 };
