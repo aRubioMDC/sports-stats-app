@@ -81,6 +81,50 @@ class CheatsheetRowOut(BaseModel):
     hits: int
     games: int
     hit_rate: float
+    without_player: str | None = None  # set only for the injury-impact category
+    opponent_rank: int | None = None  # set only for the opponent-rank category (1 = best defense)
+    opponent_team_count: int | None = None  # total teams, so the frontend can render "Nth of M"
+
+
+class TeamGeneralStats(BaseModel):
+    """Season averages shown in the ValueStats-style match row ("general stats" column)."""
+
+    points_per_game: float
+    points_per_game_rank: int
+    yards_per_game: float
+    yards_per_game_rank: int
+
+
+class ParlayOut(BaseModel):
+    """One parlay slate for a game \u2014 a handful of legs plus their weakest-leg summary."""
+
+    legs: list[CheatsheetRowOut]
+    summary_hits: int
+    summary_games: int
+
+
+class BoardGameOut(BaseModel):
+    """One landing-page match row: kickoff/status, team form, general stats, top trends."""
+
+    game: GameOut
+    home_form: list[str]  # "W"/"L"/"T", most recent first
+    away_form: list[str]
+    home_stats: TeamGeneralStats | None
+    away_stats: TeamGeneralStats | None
+    top_trends: list[CheatsheetRowOut]
+
+
+class TrendGroupsOut(BaseModel):
+    """Linemate-style cheatsheet categories, all backed by real computed hit-rate data."""
+
+    recent_form: list[CheatsheetRowOut]
+    versus_opponent: list[CheatsheetRowOut]
+    alternate_lines: list[CheatsheetRowOut]
+    home_away_splits: list[CheatsheetRowOut]
+    unders_only: list[CheatsheetRowOut]
+    team_form: list[CheatsheetRowOut]
+    injury_impact: list[CheatsheetRowOut]
+    opponent_rank: list[CheatsheetRowOut]
 
 
 class OddsLineOut(BaseModel):
