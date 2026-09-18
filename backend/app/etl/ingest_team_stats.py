@@ -135,4 +135,6 @@ def ingest_team_stats(current_season: int) -> None:
 
 
 if __name__ == "__main__":
-    ingest_team_stats(settings.current_season)
+    import nflreadpy as nfl_data
+
+    ingest_team_stats(nfl_data.get_current_season())

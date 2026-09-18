@@ -73,4 +73,6 @@ def compute_trends(current_season: int) -> None:
 
 
 if __name__ == "__main__":
-    compute_trends(settings.current_season)
+    import nflreadpy as nfl_data
+
+    compute_trends(nfl_data.get_current_season())

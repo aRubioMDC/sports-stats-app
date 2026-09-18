@@ -9,7 +9,6 @@ import nflreadpy as nfl
 import pandas as pd
 from sqlalchemy.orm import Session
 
-from app.config import settings
 from app.db import SessionLocal
 from app.models import Game, Player, PlayerWeeklyStat, Team
 

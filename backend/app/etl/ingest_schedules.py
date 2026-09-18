@@ -50,7 +50,13 @@ def ingest_schedules(season: int) -> None:
             game.week = int(row["week"])
             game.game_type = row.get("game_type", "REG")
             gameday = row.get("gameday")
-            game.kickoff = datetime.strptime(gameday, "%Y-%m-%d") if gameday else None
+            gametime = row.get("gametime")
+            if gameday and gametime:
+                game.kickoff = datetime.strptime(f"{gameday} {gametime}", "%Y-%m-%d %H:%M")
+            elif gameday:
+                game.kickoff = datetime.strptime(gameday, "%Y-%m-%d")
+            else:
+                game.kickoff = None
             game.home_team_id = team_ids[home_abbr]
             game.away_team_id = team_ids[away_abbr]
             home_score, away_score = row.get("home_score"), row.get("away_score")
@@ -63,6 +69,6 @@ def ingest_schedules(season: int) -> None:
 
 
 if __name__ == "__main__":
-    from app.config import settings
+    import nflreadpy as nfl_data
 
-    ingest_schedules(settings.current_season)
+    ingest_schedules(nfl_data.get_current_season())
