@@ -1,9 +1,9 @@
 from fastapi import APIRouter, Depends, Query
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 from app.core.deps import valid_sport
 from app.db import get_db
-from app.models import PlayerTrendSignal
+from app.models import Player, PlayerTrendSignal
 from app.schemas import CheatsheetRowOut
 
 router = APIRouter(prefix="/{sport}/trends", tags=["trends"])
@@ -18,6 +18,7 @@ def get_cheatsheet(
 ):
     signals = (
         db.query(PlayerTrendSignal)
+        .options(joinedload(PlayerTrendSignal.player).joinedload(Player.team))
         .filter(PlayerTrendSignal.sport == sport, PlayerTrendSignal.recent_form_games >= min_games)
         .all()
     )
