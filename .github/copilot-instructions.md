@@ -110,6 +110,9 @@ though NFL is the only sport implemented so far.
   `odds_event` per game, fetched from an external odds API when configured
   (`odds_api_key` in `Settings`). Not required for the app to function — trend
   computations don't depend on these being populated.
+- **`analytics_events`** — anonymous usage event log (`event_name`, `sport`,
+  `metadata_json`, `created_at`). No FK to a user (no auth yet). Written via
+  `POST /api/events`, called fire-and-forget from the frontend's `api.trackEvent()`.
 
 ## Conventions / gotchas learned this session
 
@@ -157,4 +160,23 @@ though NFL is the only sport implemented so far.
 - Not yet deployed to Railway — `railway.toml`/`infra/Dockerfile` exist but the
   actual `railway up`/deploy step has not been run this session.
 - No user accounts/auth yet (expected — Fase 1 has no auth per roadmap above).
-- No analytics/usage tracking yet — recommended to add before Fase 4 decisions.
+  Auth approach still to be decided — see "Auth ideas" below.
+- Basic anonymous analytics now in place: `analytics_events` table +
+  `POST /api/events` + `api.trackEvent(name, metadata?)` on the frontend, wired
+  into page view, status filter change, refresh click, parlay game switch.
+- Basic error monitoring now in place: a global FastAPI exception handler logs
+  unhandled errors with traceback (`app/main.py`, `log_unhandled_exceptions`).
+  No external service (Sentry etc.) wired yet — logs go to stdout only.
+- `PREMIUM_CANDIDATE_FEATURES` list in `main.py` (currently `["advanced_tools",
+  "parlays"]`) marks Fase-4 gating candidates conceptually — no enforcement.
+
+## Auth ideas (not decided yet — discuss before implementing)
+
+Building a full login system from scratch (password hashing, reset flows,
+sessions) is a lot of surface area for Fase 1. Since the DB is already on
+Supabase, the lowest-effort path is likely **Supabase Auth** (built into the
+same project): email magic link / OTP and/or Google OAuth, with the Postgres
+`auth.users` table already provided — no custom user table or password storage
+needed. Alternatives if not using Supabase Auth: `fastapi-users` (more DIY,
+more control) or a third-party like Clerk/Auth0 (fastest to ship, adds a paid
+dependency). Do not implement any of this without explicit user go-ahead.
