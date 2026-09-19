@@ -2,6 +2,8 @@ import { useState } from "react";
 import type { CheatsheetRow } from "../api";
 import { formatTrendLine } from "../lib/statLabels";
 
+// Fase 4 candidate: PREMIUM_CANDIDATE_FEATURES=["advanced_tools"] on the backend.
+// No gating today — free for everyone until Fase 4 traction validation.
 type Mode = "injuries" | "opponent_rank";
 
 function ordinal(n: number): string {

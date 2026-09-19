@@ -121,6 +121,15 @@ async function postJson<T>(path: string): Promise<T> {
   return res.json() as Promise<T>;
 }
 
+/** Fire-and-forget anonymous usage event — never throws, never blocks the UI. */
+function trackEvent(eventName: string, metadata?: Record<string, unknown>): void {
+  fetch(`${API_BASE}/events`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ event_name: eventName, sport: DEFAULT_SPORT, metadata }),
+  }).catch(() => undefined);
+}
+
 export const api = {
   getSports: () => getJson<Sport[]>("/sports"),
   getConfig: () => getJson<Config>(`/${DEFAULT_SPORT}/config`),
@@ -136,4 +145,5 @@ export const api = {
   getTrendGroups: () => getJson<TrendGroups>(`/${DEFAULT_SPORT}/trends/groups`),
   getParlays: (gameId: number) => getJson<Parlay[]>(`/${DEFAULT_SPORT}/games/${gameId}/parlays`),
   refreshScores: () => postJson<{ last_updated: string }>(`/${DEFAULT_SPORT}/refresh`),
+  trackEvent,
 };

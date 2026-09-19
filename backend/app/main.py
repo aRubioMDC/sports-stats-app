@@ -1,14 +1,30 @@
+import json
+import logging
 import os
 from datetime import datetime, timezone
 
 from apscheduler.schedulers.background import BackgroundScheduler
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
+from pydantic import BaseModel
 
 from app.core.sport_registry import SPORTS
+from app.db import SessionLocal
+from app.models import AnalyticsEvent
 from app.routers import board, games, matchup, odds, players, trends
 
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
+logger = logging.getLogger("sportstats")
+
 app = FastAPI(title="Sports Stats & Trends API")
+
+
+@app.exception_handler(Exception)
+async def log_unhandled_exceptions(request: Request, exc: Exception):
+    logger.exception("Unhandled error on %s %s", request.method, request.url.path)
+    return JSONResponse(status_code=500, content={"detail": "Internal server error"})
+
 
 app.include_router(games.router, prefix="/api")
 app.include_router(matchup.router, prefix="/api")
@@ -20,6 +36,36 @@ app.include_router(board.router, prefix="/api")
 # Last time each sport's data was touched, in-memory — surfaced via /config so the
 # frontend can show "Updated Xm ago" and know how fresh the board is.
 _last_updated: dict[str, datetime] = {}
+
+# Fase 4 candidate: gate these behind a subscription once free-usage traction is
+# validated. No enforcement today — purely a marker for future scoping.
+PREMIUM_CANDIDATE_FEATURES = ["advanced_tools", "parlays"]
+
+
+class AnalyticsEventIn(BaseModel):
+    event_name: str
+    sport: str | None = None
+    metadata: dict | None = None
+
+
+@app.post("/api/events", status_code=204)
+def track_event(event: AnalyticsEventIn):
+    """Fire-and-forget anonymous usage event — no user accounts to tie this to yet."""
+    db = SessionLocal()
+    try:
+        db.add(
+            AnalyticsEvent(
+                event_name=event.event_name,
+                sport=event.sport,
+                metadata_json=json.dumps(event.metadata)[:512] if event.metadata else None,
+            )
+        )
+        db.commit()
+    except Exception:
+        logger.exception("Failed to record analytics event %s", event.event_name)
+        db.rollback()
+    finally:
+        db.close()
 
 
 @app.get("/api/health")

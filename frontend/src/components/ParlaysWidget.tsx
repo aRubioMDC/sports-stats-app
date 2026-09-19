@@ -3,7 +3,9 @@ import type { Game, Parlay } from "../api";
 import { formatTrendLine } from "../lib/statLabels";
 
 /** Linemate-style "Parlays for X @ Y" widget — a dropdown to switch games, and a
- * carousel (‹ N / total ›) to page through that game's several parlay slates. */
+ * carousel (‹ N / total ›) to page through that game's several parlay slates.
+ * Fase 4 candidate: PREMIUM_CANDIDATE_FEATURES=["parlays"] on the backend — no
+ * gating today, free for everyone until Fase 4 traction validation. */
 export function ParlaysWidget({
   game,
   parlays,

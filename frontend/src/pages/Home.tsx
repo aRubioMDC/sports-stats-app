@@ -39,6 +39,7 @@ export function Home() {
   const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
+    api.trackEvent("page_view_home");
     api
       .getConfig()
       .then((c) => {
@@ -90,7 +91,10 @@ export function Home() {
   const statusChip = (value: StatusFilter, label: string, count: number) => (
     <button
       type="button"
-      onClick={() => setStatusFilter(value)}
+      onClick={() => {
+        setStatusFilter(value);
+        api.trackEvent("status_filter_change", { filter: value });
+      }}
       className={`rounded-full px-3 py-1 text-xs font-semibold transition ${
         statusFilter === value
           ? "bg-white/15 text-white"
@@ -105,12 +109,14 @@ export function Home() {
 
   const handleSelectParlayGame = (gameId: number) => {
     setSelectedGameId(gameId);
+    api.trackEvent("parlays_switch_game", { gameId });
     api.getParlays(gameId).then(setParlays).catch(() => undefined);
   };
 
   const handleRefresh = () => {
     if (season === null || week === null || refreshing) return;
     setRefreshing(true);
+    api.trackEvent("refresh_scores_click");
     api
       .refreshScores()
       .then((res) => setLastUpdated(res.last_updated))

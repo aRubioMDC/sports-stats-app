@@ -188,3 +188,15 @@ class PlayerPropOdds(Base):
     over_price: Mapped[float | None] = mapped_column(Float, nullable=True)
     under_price: Mapped[float | None] = mapped_column(Float, nullable=True)
     fetched_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+
+class AnalyticsEvent(Base):
+    """Anonymous usage event (no user accounts yet) — feeds Fase 4 traction decisions."""
+
+    __tablename__ = "analytics_events"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    event_name: Mapped[str] = mapped_column(String(64), index=True)
+    sport: Mapped[str | None] = mapped_column(String(16), nullable=True)
+    metadata_json: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, index=True)
