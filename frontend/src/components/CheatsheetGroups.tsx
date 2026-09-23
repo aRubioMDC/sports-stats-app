@@ -60,7 +60,13 @@ export function CheatsheetGroups({
 
   const totalPages = Math.ceil(categories.length / PAGE_SIZE);
   const [page, setPage] = useState(0);
+  const [direction, setDirection] = useState(1);
   const visible = categories.slice(page * PAGE_SIZE, page * PAGE_SIZE + PAGE_SIZE);
+
+  const goToPage = (next: number) => {
+    setDirection(next > page ? 1 : -1);
+    setPage(next);
+  };
 
   return (
     <div>
@@ -73,7 +79,7 @@ export function CheatsheetGroups({
           <div className="flex shrink-0 items-center gap-2">
             <button
               type="button"
-              onClick={() => setPage((p) => Math.max(0, p - 1))}
+              onClick={() => goToPage(Math.max(0, page - 1))}
               disabled={page === 0}
               aria-label="Previous categories"
               className="rounded-full border border-white/10 px-2.5 py-1 text-white/60 transition hover:border-sky-400/40 hover:text-sky-400 disabled:opacity-30"
@@ -82,7 +88,7 @@ export function CheatsheetGroups({
             </button>
             <button
               type="button"
-              onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
+              onClick={() => goToPage(Math.min(totalPages - 1, page + 1))}
               disabled={page === totalPages - 1}
               aria-label="Next categories"
               className="rounded-full border border-white/10 px-2.5 py-1 text-white/60 transition hover:border-sky-400/40 hover:text-sky-400 disabled:opacity-30"
@@ -92,7 +98,11 @@ export function CheatsheetGroups({
           </div>
         )}
       </div>
-      <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+      <div
+        key={page}
+        style={{ "--slide-from": direction >= 0 ? "20px" : "-20px" } as React.CSSProperties}
+        className="animate-carousel-slide grid grid-cols-1 gap-3 md:grid-cols-3"
+      >
         {visible.map((cat) => (
           <GroupColumn key={cat.title} icon={cat.icon} title={cat.title} rows={cat.rows} />
         ))}

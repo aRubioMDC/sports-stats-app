@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { api } from "../api";
 import type { CheatsheetRow } from "../api";
 import { CheatsheetRowCard } from "../components/CheatsheetRowCard";
+import { Select } from "../components/Select";
 
 export function Cheatsheet() {
   const [rows, setRows] = useState<CheatsheetRow[]>([]);
@@ -27,15 +28,15 @@ export function Cheatsheet() {
 
       <label className="mb-4 block text-sm text-white/60">
         Minimum hit rate
-        <select
+        <Select
           value={minHitRate}
           onChange={(e) => setMinHitRate(Number(e.target.value))}
-          className="ml-2 rounded border border-white/10 bg-[#12141a] px-2 py-1 text-white"
+          wrapperClassName="ml-2 align-middle"
         >
           <option value={1.0}>100%</option>
           <option value={0.8}>80%+</option>
           <option value={0.6}>60%+</option>
-        </select>
+        </Select>
       </label>
 
       {loading && <p className="text-white/50">Loading…</p>}

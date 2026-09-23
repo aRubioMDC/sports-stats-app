@@ -40,7 +40,8 @@ function TeamColumn({
   score,
   showScore,
   form,
-  align,
+  ppg,
+  rank,
 }: {
   abbreviation: string;
   logoUrl: string;
@@ -48,53 +49,36 @@ function TeamColumn({
   score: number | null;
   showScore: boolean;
   form: string[];
-  align: "left" | "right";
+  ppg: number | undefined;
+  rank: number | undefined;
 }) {
   return (
-    <div className={`flex flex-1 items-center gap-2 ${align === "right" ? "flex-row-reverse text-right" : ""}`}>
-      {logoUrl ? (
-        <img src={logoUrl} alt="" className="h-8 w-8 shrink-0 object-contain" />
-      ) : (
-        <span className="h-8 w-8 shrink-0 rounded-full" style={{ backgroundColor: primaryColor }} />
-      )}
-      <div>
-        <div className="flex items-center gap-2">
-          {showScore && <span className="text-base font-extrabold text-white">{score ?? 0}</span>}
-          <span className="text-sm font-bold text-white">{abbreviation}</span>
+    <div className="flex items-center justify-between gap-3">
+      <div className="flex min-w-0 items-center gap-2.5">
+        {logoUrl ? (
+          <img src={logoUrl} alt="" className="h-8 w-8 shrink-0 object-contain" />
+        ) : (
+          <span className="h-8 w-8 shrink-0 rounded-full" style={{ backgroundColor: primaryColor }} />
+        )}
+        <div className="min-w-0">
+          <div className="flex items-center gap-2">
+            {showScore && <span className="text-base font-extrabold text-white">{score ?? 0}</span>}
+            <span className="text-sm font-bold text-white">{abbreviation}</span>
+          </div>
+          <FormDots form={form} />
         </div>
-        <FormDots form={form} />
       </div>
+      {ppg !== undefined && (
+        <div className="shrink-0 text-right text-xs text-white/60">
+          <div>{ppg} PPG</div>
+          <div className="text-white/30">#{rank}</div>
+        </div>
+      )}
     </div>
   );
 }
 
-function GeneralStatsColumn({
-  homePpg,
-  homeRank,
-  awayPpg,
-  awayRank,
-}: {
-  homePpg: number | undefined;
-  homeRank: number | undefined;
-  awayPpg: number | undefined;
-  awayRank: number | undefined;
-}) {
-  if (homePpg === undefined || awayPpg === undefined) {
-    return <span className="text-xs text-white/30">—</span>;
-  }
-  return (
-    <div className="text-xs text-white/60">
-      <div>
-        {awayPpg} PPG <span className="text-white/30">#{awayRank}</span>
-      </div>
-      <div>
-        {homePpg} PPG <span className="text-white/30">#{homeRank}</span>
-      </div>
-    </div>
-  );
-}
-
-/** ValueStats-style match row: kickoff, team form, general stats, and top prop trends. */
+/** ValueStats-style match row: kickoff, team form (paired with its own PPG/rank), and top prop trends. */
 export function MatchRow({ row }: { row: BoardGame }) {
   const { game } = row;
   const isFinal = game.status === "final";
@@ -102,18 +86,18 @@ export function MatchRow({ row }: { row: BoardGame }) {
   return (
     <Link
       to={`/games/${game.id}`}
-      className="grid grid-cols-1 gap-3 rounded-xl border border-white/10 bg-[#12141a] p-4 transition hover:border-sky-400/40 hover:bg-[#161923] sm:grid-cols-[auto_1.6fr_0.9fr_1.5fr_auto] sm:items-center sm:gap-4"
+      className="block rounded-xl border border-white/10 bg-[#12141a] p-4 transition hover:border-sky-400/40 hover:bg-[#161923]"
     >
-      <div className="flex shrink-0 flex-col text-xs font-semibold text-white/40 sm:w-24">
+      <div className="flex items-center justify-between text-xs font-semibold text-white/40">
         <span>{formatKickoff(game.kickoff)}</span>
         {isFinal ? (
-          <span className="mt-1 w-fit rounded bg-white/10 px-1.5 py-0.5 text-white/60">FINAL</span>
+          <span className="w-fit rounded bg-white/10 px-1.5 py-0.5 text-white/60">FINAL</span>
         ) : (
-          <span className="mt-1 w-fit rounded bg-emerald-500/15 px-1.5 py-0.5 text-emerald-400">UPCOMING</span>
+          <span className="w-fit rounded bg-emerald-500/15 px-1.5 py-0.5 text-emerald-400">UPCOMING</span>
         )}
       </div>
 
-      <div className="flex flex-col gap-2">
+      <div className="mt-3 flex flex-col gap-2.5">
         <TeamColumn
           abbreviation={game.away_team.abbreviation}
           logoUrl={game.away_team.logo_url}
@@ -121,7 +105,8 @@ export function MatchRow({ row }: { row: BoardGame }) {
           score={game.away_score}
           showScore={isFinal}
           form={row.away_form}
-          align="left"
+          ppg={row.away_stats?.points_per_game}
+          rank={row.away_stats?.points_per_game_rank}
         />
         <TeamColumn
           abbreviation={game.home_team.abbreviation}
@@ -130,32 +115,25 @@ export function MatchRow({ row }: { row: BoardGame }) {
           score={game.home_score}
           showScore={isFinal}
           form={row.home_form}
-          align="left"
+          ppg={row.home_stats?.points_per_game}
+          rank={row.home_stats?.points_per_game_rank}
         />
       </div>
 
-      <GeneralStatsColumn
-        homePpg={row.home_stats?.points_per_game}
-        homeRank={row.home_stats?.points_per_game_rank}
-        awayPpg={row.away_stats?.points_per_game}
-        awayRank={row.away_stats?.points_per_game_rank}
-      />
-
-      <div className="flex flex-col gap-1">
-        {row.top_trends.length === 0 && <span className="text-xs text-white/30">No trends yet</span>}
-        {row.top_trends.map((trend, i) => (
-          <div key={i} className="flex items-center gap-1.5 text-xs">
-            <span className="text-sky-400">↗</span>
-            <span className="font-semibold text-white/80">{trend.player_name}</span>
-            <span className="text-white/50">{formatMarketTrendLine(trend)}</span>
-            <span className="font-semibold text-emerald-400">
-              {trend.hits}/{trend.games}
-            </span>
-          </div>
-        ))}
-      </div>
-
-      <span className="hidden shrink-0 rounded-full bg-white/5 p-2 text-white/40 sm:block">→</span>
+      {row.top_trends.length > 0 && (
+        <div className="mt-2.5 flex flex-col gap-1.5 border-t border-white/5 pt-2.5 sm:flex-row sm:flex-wrap sm:gap-x-5 sm:gap-y-1.5">
+          {row.top_trends.map((trend, i) => (
+            <div key={i} className="flex items-center gap-1.5 text-xs">
+              <span className="text-sky-400">↗</span>
+              <span className="font-semibold text-white/80">{trend.player_name}</span>
+              <span className="text-white/50">{formatMarketTrendLine(trend)}</span>
+              <span className="font-semibold text-emerald-400">
+                {trend.hits}/{trend.games}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
     </Link>
   );
 }

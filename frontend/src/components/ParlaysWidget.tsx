@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import type { Game, Parlay } from "../api";
 import { formatTrendLine } from "../lib/statLabels";
+import { Select } from "./Select";
 
 /** Linemate-style "Parlays for X @ Y" widget — a dropdown to switch games, and a
  * carousel (‹ N / total ›) to page through that game's several parlay slates.
@@ -30,17 +31,13 @@ export function ParlaysWidget({
     <div>
       <div className="mb-3 flex items-center justify-between">
         <h2 className="text-lg font-bold text-white">Parlays for</h2>
-        <select
-          value={game.id}
-          onChange={(e) => onSelectGame(Number(e.target.value))}
-          className="rounded-full border border-white/10 bg-[#12141a] px-3 py-1 text-sm font-semibold text-white/80"
-        >
+        <Select value={game.id} onChange={(e) => onSelectGame(Number(e.target.value))}>
           {games.map((g) => (
             <option key={g.id} value={g.id}>
               {g.away_team.abbreviation} @ {g.home_team.abbreviation}
             </option>
           ))}
-        </select>
+        </Select>
       </div>
       <div className="rounded-xl border border-white/10 bg-[#12141a] p-4">
         <div className="mb-3 flex items-center justify-between">

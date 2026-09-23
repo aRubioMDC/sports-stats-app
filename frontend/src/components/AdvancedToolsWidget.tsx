@@ -1,6 +1,7 @@
 import { useState } from "react";
 import type { CheatsheetRow } from "../api";
 import { formatTrendLine } from "../lib/statLabels";
+import { Select } from "./Select";
 
 // Fase 4 candidate: PREMIUM_CANDIDATE_FEATURES=["advanced_tools"] on the backend.
 // No gating today — free for everyone until Fase 4 traction validation.
@@ -53,14 +54,10 @@ export function AdvancedToolsWidget({
     <div>
       <div className="mb-1 flex items-center justify-between">
         <h2 className="text-lg font-bold text-white">Advanced Tools for</h2>
-        <select
-          value={mode}
-          onChange={(e) => setMode(e.target.value as Mode)}
-          className="rounded-full border border-white/10 bg-[#12141a] px-3 py-1 text-sm font-semibold text-white/80"
-        >
+        <Select value={mode} onChange={(e) => setMode(e.target.value as Mode)}>
           {injuryCards.length > 0 && <option value="injuries">Injuries</option>}
           {opponentRankCards.length > 0 && <option value="opponent_rank">Opponent Rank</option>}
-        </select>
+        </Select>
       </div>
       <p className="mb-3 text-sm text-white/50">
         {mode === "injuries"
