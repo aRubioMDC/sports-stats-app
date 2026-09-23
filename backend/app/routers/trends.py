@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session, joinedload
 
+from app.core.cache import ttl_cache
 from app.core.deps import valid_sport
 from app.db import get_db
 from app.models import Player, PlayerTrendSignal
@@ -10,6 +11,7 @@ router = APIRouter(prefix="/{sport}/trends", tags=["trends"])
 
 
 @router.get("/cheatsheet", response_model=list[CheatsheetRowOut])
+@ttl_cache(seconds=300)
 def get_cheatsheet(
     sport: str = Depends(valid_sport),
     min_hit_rate: float = Query(1.0, ge=0, le=1),

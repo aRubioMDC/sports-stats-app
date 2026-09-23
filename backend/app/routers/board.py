@@ -10,6 +10,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session, joinedload
 
 from app.core.deps import valid_sport
+from app.core.cache import ttl_cache
 from app.core.sport_registry import get_sport
 from app.db import get_db
 from app.etl.compute_trends import DEFAULT_THRESHOLDS, STAT_NAMES
@@ -225,6 +226,7 @@ def _game_market_trends(db: Session, sport: str, game: Game) -> list[CheatsheetR
 
 
 @router.get("/board", response_model=list[BoardGameOut])
+@ttl_cache(seconds=60)
 def get_board(season: int, week: int, sport: str = Depends(valid_sport), db: Session = Depends(get_db)):
     games = (
         db.query(Game)
@@ -280,6 +282,7 @@ def get_board(season: int, week: int, sport: str = Depends(valid_sport), db: Ses
 
 
 @router.get("/games/{game_id}/parlays", response_model=list[ParlayOut])
+@ttl_cache(seconds=60)
 def get_parlays(game_id: int, sport: str = Depends(valid_sport), db: Session = Depends(get_db)):
     """Several 2-3 leg parlay slates for this game, like Linemate's "Parlays for X @ Y"
     carousel — each slate is a distinct group of the game's best hit-rate legs."""
@@ -647,6 +650,7 @@ def _opponent_rank_rows(db: Session, sport: str, limit: int) -> list[CheatsheetR
 
 
 @router.get("/trends/groups", response_model=TrendGroupsOut)
+@ttl_cache(seconds=300)
 def get_trend_groups(sport: str = Depends(valid_sport), db: Session = Depends(get_db)):
     signals = (
         db.query(PlayerTrendSignal)
