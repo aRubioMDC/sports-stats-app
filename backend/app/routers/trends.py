@@ -177,6 +177,9 @@ def get_cheatsheet(
                 split_games=signal.split_games if signal.split_games > 0 else None,
                 h2h_hits=signal.h2h_hits if signal.h2h_games > 0 else None,
                 h2h_games=signal.h2h_games if signal.h2h_games > 0 else None,
+                # Opponent rank data
+                opponent_rank=signal.opponent_rank if signal.opponent_rank > 0 else None,
+                opponent_team_count=32 if signal.opponent_rank > 0 else None,  # NFL has 32 teams
                 # Game information for sorting by upcoming games
                 game_id=game_id,
                 game_kickoff=game_kickoff,
