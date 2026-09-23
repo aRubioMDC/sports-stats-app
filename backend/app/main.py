@@ -14,7 +14,7 @@ from app.core.cache import clear_cache
 from app.core.sport_registry import SPORTS
 from app.db import SessionLocal
 from app.models import AnalyticsEvent
-from app.routers import board, games, matchup, odds, players, trends
+from app.routers import board, games, matchup, odds, players, teams, trends
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 logger = logging.getLogger("sportstats")
@@ -40,6 +40,7 @@ async def log_unhandled_exceptions(request: Request, exc: Exception):
 app.include_router(games.router, prefix="/api")
 app.include_router(matchup.router, prefix="/api")
 app.include_router(players.router, prefix="/api")
+app.include_router(teams.router, prefix="/api")
 app.include_router(trends.router, prefix="/api")
 app.include_router(odds.router, prefix="/api")
 app.include_router(board.router, prefix="/api")

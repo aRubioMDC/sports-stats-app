@@ -143,6 +143,7 @@ export const api = {
   getBoard: (season: number, week: number) =>
     getJson<BoardGame[]>(`/${DEFAULT_SPORT}/board?season=${season}&week=${week}`),
   getTrendGroups: () => getJson<TrendGroups>(`/${DEFAULT_SPORT}/trends/groups`),
+  getTeams: () => getJson<Team[]>(`/${DEFAULT_SPORT}/teams`),
   getParlays: (gameId: number) => getJson<Parlay[]>(`/${DEFAULT_SPORT}/games/${gameId}/parlays`),
   getSamplePrices: () => getJson<number[]>(`/${DEFAULT_SPORT}/odds/sample`),
   refreshScores: () => postJson<{ last_updated: string }>(`/${DEFAULT_SPORT}/refresh`),

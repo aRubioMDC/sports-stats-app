@@ -35,38 +35,6 @@ type TrendCard = {
 // Mock sportsbooks for variety
 const SPORTSBOOKS = ["FanDuel", "DraftKings", "BetMGM", "Caesars", "Betano", "PointsBet"];
 
-// Team emojis for reliable display
-const TEAM_EMOJIS: Record<string, string> = {
-  DAL: "🤠",
-  NYG: "🗽",
-  PHI: "🦅",
-  WAS: "🧢",
-  DEN: "🐴",
-  KC: "👑",
-  LAC: "⚡",
-  LV: "💣",
-  BAL: "🐦",
-  BUF: "🦬",
-  MIA: "🐬",
-  NE: "🐭",
-  HOU: "🔫",
-  IND: "🐎",
-  JAX: "🐆",
-  TEN: "🎸",
-  CHI: "🐻",
-  DET: "🦁",
-  GB: "🧀",
-  MIN: "🟣",
-  ATL: "🪘",
-  CAR: "🐯",
-  NO: "⚜️",
-  TB: "🏴‍☠️",
-  ARI: "🌵",
-  LAR: "🐏",
-  SF: "🌉",
-  SEA: "🌊",
-};
-
 function calculateProjectedROI(hitRate: number, price: number): number {
   if (price === 0) return 0;
   const odds = Math.abs(price);
@@ -173,14 +141,27 @@ export function Trends() {
   const [loading, setLoading] = useState(true);
   const [minHitRate, setMinHitRate] = useState(0.60);
   const [selectedCard, setSelectedCard] = useState<TrendCard | null>(null);
+  const [teamLogos, setTeamLogos] = useState<Record<string, { logoUrl: string; primaryColor: string }>>({});
 
   useEffect(() => {
     api.trackEvent("page_view_trends");
 
-    Promise.all([api.getTrendGroups(), api.getSamplePrices()])
-      .then(([groups, prices]) => {
+    Promise.all([api.getTrendGroups(), api.getSamplePrices(), api.getTeams()])
+      .then(([groups, prices, teams]) => {
         setTrendGroups(groups);
         setSamplePrices(prices);
+        // Create mapping of team abbreviation to logo and color
+        const logos = teams.reduce(
+          (acc, team) => {
+            acc[team.abbreviation] = {
+              logoUrl: team.logo_url,
+              primaryColor: team.primary_color,
+            };
+            return acc;
+          },
+          {} as Record<string, { logoUrl: string; primaryColor: string }>
+        );
+        setTeamLogos(logos);
       })
       .catch(() => undefined)
       .finally(() => setLoading(false));
@@ -374,6 +355,7 @@ export function Trends() {
                   key={card.id}
                   card={card}
                   onSelect={() => setSelectedCard(card)}
+                  teamLogos={teamLogos}
                 />
               ))}
             </div>
@@ -385,6 +367,7 @@ export function Trends() {
         <TrendDetailModal
           card={selectedCard}
           onClose={() => setSelectedCard(null)}
+          teamLogos={teamLogos}
         />
       )}
     </div>
@@ -394,12 +377,15 @@ export function Trends() {
 interface TrendCardComponentProps {
   card: TrendCard;
   onSelect: () => void;
+  teamLogos: Record<string, { logoUrl: string; primaryColor: string }>;
 }
 
 function TrendCardComponent({
   card,
   onSelect,
+  teamLogos,
 }: TrendCardComponentProps) {
+  const [showConfidenceInfo, setShowConfidenceInfo] = useState(false);
   const confidenceColors = {
     high: "bg-emerald-500/20 border-emerald-500/50 text-emerald-200",
     medium: "bg-amber-500/20 border-amber-500/50 text-amber-200",
@@ -419,6 +405,8 @@ function TrendCardComponent({
         ? "text-amber-400"
         : "text-rose-400";
 
+  const teamLogo = teamLogos[card.team];
+  
   return (
     <div
       onClick={onSelect}
@@ -427,16 +415,20 @@ function TrendCardComponent({
       {/* Header */}
       <div className="mb-3 flex items-start justify-between gap-3">
         <div className="flex items-start gap-2">
-          <div className="text-2xl flex-shrink-0">
-            {TEAM_EMOJIS[card.team] || "🏈"}
-          </div>
+          {teamLogo?.logoUrl ? (
+            <img src={teamLogo.logoUrl} alt={card.team} className="h-8 w-8 shrink-0 object-contain" />
+          ) : (
+            <div className="h-8 w-8 shrink-0 rounded-full" style={{ backgroundColor: teamLogo?.primaryColor || "#ffffff" }} />
+          )}
           <div>
             <div className="flex items-center gap-2">
               <span className="text-lg font-bold text-white">{card.playerName}</span>
               <span className="text-xs text-white/50 font-semibold">{card.team}</span>
             </div>
-            <div className="mt-1 text-sm text-white/60">{card.matchup}</div>
           </div>
+        </div>
+        <div className="text-xs font-semibold text-white/70">
+          {card.matchup}
         </div>
       </div>
 
@@ -454,10 +446,36 @@ function TrendCardComponent({
           </div>
           <div className="text-xs text-white/50">{card.sportsbook}</div>
         </div>
-        <div
-          className={`rounded-lg border px-2 py-1 text-xs font-semibold ${confidenceColors[card.confidence]}`}
-        >
-          {confidenceLabels[card.confidence]}
+        <div className="relative">
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              setShowConfidenceInfo(!showConfidenceInfo);
+            }}
+            className={`rounded-lg border px-2 py-1 text-xs font-semibold transition ${confidenceColors[card.confidence]}`}
+          >
+            {confidenceLabels[card.confidence]}
+          </button>
+          {showConfidenceInfo && (
+            <div className="absolute right-0 top-full mt-2 z-10 w-56 rounded-lg border border-white/20 bg-[#0f1117] p-3 text-xs text-white/80 shadow-lg">
+              <div className="mb-2 font-semibold text-white">Confidence Levels</div>
+              <div className="space-y-2">
+                <div>
+                  <div className="font-semibold text-emerald-400">🟢 High Confidence</div>
+                  <div>Hit rate ≥ 75% + ≥ 5 games</div>
+                </div>
+                <div>
+                  <div className="font-semibold text-amber-400">🟡 Medium Confidence</div>
+                  <div>Hit rate ≥ 60% + ≥ 3 games</div>
+                </div>
+                <div>
+                  <div className="font-semibold text-rose-400">🔴 Low Confidence</div>
+                  <div>Lower hit rate or fewer games</div>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
@@ -495,9 +513,10 @@ function TrendCardComponent({
 interface TrendDetailModalProps {
   card: TrendCard;
   onClose: () => void;
+  teamLogos: Record<string, { logoUrl: string; primaryColor: string }>;
 }
 
-function TrendDetailModal({ card, onClose }: TrendDetailModalProps) {
+function TrendDetailModal({ card, onClose, teamLogos }: TrendDetailModalProps) {
   const detailData = generateDetailData(card);
 
   return (
@@ -513,9 +532,11 @@ function TrendDetailModal({ card, onClose }: TrendDetailModalProps) {
         <div className="mb-6 flex items-start justify-between gap-4">
           <div>
             <div className="flex items-center gap-3 mb-2">
-              <div className="text-4xl">
-                {TEAM_EMOJIS[card.team] || "🏈"}
-              </div>
+              {(teamLogos[card.team]?.logoUrl ? (
+                <img src={teamLogos[card.team].logoUrl} alt={card.team} className="h-12 w-12 shrink-0 object-contain" />
+              ) : (
+                <div className="h-12 w-12 shrink-0 rounded-full" style={{ backgroundColor: teamLogos[card.team]?.primaryColor || "#ffffff" }} />
+              ))}
               <div>
                 <h1 className="text-3xl font-black text-white">{card.playerName}</h1>
                 <p className="text-white/60">{card.team} • {card.matchup}</p>
@@ -619,8 +640,12 @@ function TrendDetailModal({ card, onClose }: TrendDetailModalProps) {
                 {detailData.gamelog.map((game, idx) => (
                   <tr key={idx} className="border-b border-white/5 hover:bg-white/3">
                     <td className="px-3 py-2 text-white">{game.date}</td>
-                    <td className="px-3 py-2 text-center text-lg">
-                      {TEAM_EMOJIS[game.opponent] || "🏈"}
+                    <td className="px-3 py-2 text-center">
+                      {teamLogos[game.opponent]?.logoUrl ? (
+                        <img src={teamLogos[game.opponent].logoUrl} alt={game.opponent} className="h-6 w-6 shrink-0 object-contain mx-auto" />
+                      ) : (
+                        <div className="h-6 w-6 shrink-0 rounded-full mx-auto" style={{ backgroundColor: teamLogos[game.opponent]?.primaryColor || "#ffffff" }} />
+                      )}
                     </td>
                     <td className="px-3 py-2">
                       <span
