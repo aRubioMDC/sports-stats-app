@@ -32,13 +32,12 @@ def ingest_odds() -> None:
         events = response.json()
 
         for event in events:
+            home_abbr = event["home_team"][:3].upper()
             game = (
                 db.query(Game)
-                .join(Game.home_team)
-                .join(Game.away_team)
                 .filter(
                     Game.sport == "nfl",
-                    Game.home_team.has(abbreviation=event["home_team"][:3].upper()),
+                    Game.home_team.has(abbreviation=home_abbr),
                 )
                 .first()
             )
