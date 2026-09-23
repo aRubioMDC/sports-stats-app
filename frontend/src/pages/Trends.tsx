@@ -90,6 +90,13 @@ function toPrice(index: number, isOver: boolean, samplePrices: number[]): number
   return Math.round(price);
 }
 
+function formatStatName(statName: string): string {
+  return statName
+    .split("_")
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(" ");
+}
+
 interface DetailData {
   stats: Array<{ label: string; games: number; yards: string; attempts: string; td: string; targets: string }>;
   injuryReport: { status: string; summary: string };
@@ -220,7 +227,7 @@ export function Trends() {
         playerName: row.player_name || "N/A",
         team: row.team || "N/A",
         matchup: `vs DAL`, // Mock matchup
-        stat: `${row.direction === "over" ? "Over" : "Under"} ${row.threshold} ${row.stat_name}`,
+        stat: `${row.direction === "over" ? "Over" : "Under"} ${row.threshold} ${formatStatName(row.stat_name)}`,
         direction: row.direction === "over" ? "over" : "under",
         price,
         sportsbook: SPORTSBOOKS[idx % SPORTSBOOKS.length],
@@ -245,7 +252,7 @@ export function Trends() {
           playerName: row.player_name || "Team",
           team: row.team || "N/A",
           matchup: "vs DAL",
-          stat: `${row.stat_name} ${row.threshold}`,
+          stat: `${formatStatName(row.stat_name)} Over ${row.threshold}`,
           direction: "over",
           price,
           sportsbook: SPORTSBOOKS[(idx + 2) % SPORTSBOOKS.length],
@@ -420,11 +427,19 @@ function TrendCardComponent({
       {/* Header */}
       <div className="mb-3 flex items-start justify-between gap-3">
         <div className="flex items-start gap-2">
-          <img 
-            src={TEAM_LOGOS[card.team] || "🏈"} 
-            alt={card.team} 
-            className="w-8 h-8 object-contain rounded"
-          />
+          <div className="relative w-8 h-8 bg-white/5 rounded flex items-center justify-center flex-shrink-0 border border-white/10">
+            <img 
+              src={TEAM_LOGOS[card.team]} 
+              alt={card.team} 
+              className="w-7 h-7 object-contain"
+              onError={(e) => {
+                const img = e.target as HTMLImageElement;
+                img.style.display = "none";
+                img.nextElementSibling?.classList.remove("hidden");
+              }}
+            />
+            <span className="hidden text-lg font-bold text-white/60">{card.team}</span>
+          </div>
           <div>
             <div className="flex items-center gap-2">
               <span className="text-lg font-bold text-white">{card.playerName}</span>
@@ -508,11 +523,19 @@ function TrendDetailModal({ card, onClose }: TrendDetailModalProps) {
         <div className="mb-6 flex items-start justify-between gap-4">
           <div>
             <div className="flex items-center gap-3 mb-2">
-              <img 
-                src={TEAM_LOGOS[card.team] || "🏈"} 
-                alt={card.team} 
-                className="w-12 h-12 object-contain rounded"
-              />
+              <div className="relative w-12 h-12 bg-white/5 rounded flex items-center justify-center flex-shrink-0 border border-white/10">
+                <img 
+                  src={TEAM_LOGOS[card.team]} 
+                  alt={card.team} 
+                  className="w-11 h-11 object-contain"
+                  onError={(e) => {
+                    const img = e.target as HTMLImageElement;
+                    img.style.display = "none";
+                    img.nextElementSibling?.classList.remove("hidden");
+                  }}
+                />
+                <span className="hidden text-2xl font-bold text-white/60">{card.team}</span>
+              </div>
               <div>
                 <h1 className="text-3xl font-black text-white">{card.playerName}</h1>
                 <p className="text-white/60">{card.team} • {card.matchup}</p>
