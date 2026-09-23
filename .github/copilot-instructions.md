@@ -43,6 +43,34 @@ When adding features, prefer marking them as "premium-candidate" conceptually
 - ETL manual full run: `python -m app.etl.run_all` (also runs automatically on
   startup + every 6h via the scheduler in `main.py`)
 
+## Performance: DB is remote, cache expensive endpoints
+
+The Postgres DB is on Supabase (remote, not local), so every query round-trip
+has real network latency. Endpoints that run many sequential queries per
+request (e.g. `/board`, `/trends/groups`, iterating all teams/players for
+ranks) were measured at **10-20+ seconds** uncached. `nflreadpy` calls
+(`get_current_season()`/`get_current_week()`) also have no built-in cache and
+cost ~1s each.
+
+Fix: `app/core/cache.py` provides `@ttl_cache(seconds=N)`, an in-process TTL
+cache keyed on function args (DB `Session` args are excluded from the key
+since a new one is injected per request). Applied to:
+- `board.get_board` (60s), `board.get_parlays` (60s), `board.get_trend_groups` (300s)
+- `trends.get_cheatsheet` (300s)
+- `nfl_adapter._cached_current_season`/`_cached_current_week` (3600s)
+
+`clear_cache()` is called from `main.py` after `_refresh_all_sports_scores()`
+and `_run_all_sports_etl()` so results never go stale past an actual data
+update. **When adding a new expensive board/trends endpoint, wrap it with
+`@ttl_cache` too** — this is the established pattern, don't add ad-hoc caching.
+
+Gotcha when benchmarking locally: the scheduler runs a full ETL once on every
+server startup (`etl_run_all_initial`), which calls `clear_cache()` when it
+finishes — if you time requests right after starting the server, a slow first
+batch can get invalidated mid-test by the startup ETL finishing, making a
+"second" request look uncached. Wait for the "executed successfully" log line
+before benchmarking, or just don't restart the server between measurements.
+
 ### Backend structure (`backend/app/`)
 - `main.py` — FastAPI app entrypoint, scheduler setup, `/api/health`,
   `/api/sports`, `/api/{sport}/config`, `/api/{sport}/refresh`.
