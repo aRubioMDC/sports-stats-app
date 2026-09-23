@@ -5,6 +5,8 @@ so the rest of the app keeps working with trend-only data (see plan assumptions)
 """
 
 import httpx
+from sqlalchemy import insert
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.orm import Session
 
 from app.config import settings
@@ -32,41 +34,59 @@ def ingest_odds() -> None:
         events = response.json()
 
         for event in events:
-            home_abbr = event["home_team"][:3].upper()
-            game = (
-                db.query(Game)
-                .filter(
-                    Game.sport == "nfl",
-                    Game.home_team.has(abbreviation=home_abbr),
+            try:
+                home_abbr = event["home_team"][:3].upper()
+                game = (
+                    db.query(Game)
+                    .filter(
+                        Game.sport == "nfl",
+                        Game.home_team.has(abbreviation=home_abbr),
+                    )
+                    .first()
                 )
-                .first()
-            )
-            if game is None:
-                continue
-            odds_event = (
-                db.query(OddsEvent).filter(OddsEvent.external_event_id == event["id"]).one_or_none()
-            )
-            if odds_event is None:
-                odds_event = OddsEvent(game_id=game.id, external_event_id=event["id"])
-                db.add(odds_event)
+                if game is None:
+                    continue
+                
+                # Use upsert to avoid duplicate key errors in concurrent requests
+                stmt = pg_insert(OddsEvent).values(
+                    game_id=game.id, 
+                    external_event_id=event["id"]
+                ).on_conflict_do_nothing(index_elements=['external_event_id'])
+                
+                db.execute(stmt)
                 db.flush()
+                
+                # Re-fetch to get the actual ID (either newly inserted or existing)
+                odds_event = (
+                    db.query(OddsEvent).filter(OddsEvent.external_event_id == event["id"]).one()
+                )
 
-            db.query(OddsLine).filter(OddsLine.odds_event_id == odds_event.id).delete()
-            for bookmaker in event.get("bookmakers", []):
-                for market in bookmaker.get("markets", []):
-                    for outcome in market.get("outcomes", []):
-                        db.add(
-                            OddsLine(
-                                odds_event_id=odds_event.id,
-                                bookmaker=bookmaker["key"],
-                                market=market["key"],
-                                outcome_name=outcome["name"],
-                                price=outcome["price"],
-                                point=outcome.get("point"),
+                # Clear old odds lines and add new ones
+                db.query(OddsLine).filter(OddsLine.odds_event_id == odds_event.id).delete()
+                for bookmaker in event.get("bookmakers", []):
+                    for market in bookmaker.get("markets", []):
+                        for outcome in market.get("outcomes", []):
+                            db.add(
+                                OddsLine(
+                                    odds_event_id=odds_event.id,
+                                    bookmaker=bookmaker["key"],
+                                    market=market["key"],
+                                    outcome_name=outcome["name"],
+                                    price=outcome["price"],
+                                    point=outcome.get("point"),
+                                )
                             )
-                        )
+            except Exception as e:
+                # Log and continue with next event to avoid halting entire ingestion
+                print(f"Error processing event {event.get('id')}: {e}")
+                db.rollback()
+                continue
         db.commit()
-    except httpx.HTTPError:
+    except httpx.HTTPError as e:
+        print(f"HTTP error fetching odds: {e}")
+        db.rollback()
+    except Exception as e:
+        print(f"Unexpected error in ingest_odds: {e}")
         db.rollback()
     finally:
         db.close()

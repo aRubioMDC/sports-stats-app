@@ -85,13 +85,18 @@ def _top_trends_for_teams(
 ) -> list[CheatsheetRowOut]:
     signals = (
         db.query(PlayerTrendSignal)
-        .options(joinedload(PlayerTrendSignal.player).joinedload(Player.team))
+        .options(
+            joinedload(PlayerTrendSignal.player).joinedload(Player.team),
+            joinedload(PlayerTrendSignal.player).joinedload(Player.weekly_stats)
+        )
         .join(Player)
         .filter(
             PlayerTrendSignal.sport == sport,
             Player.team_id.in_(team_ids),
             PlayerTrendSignal.recent_form_games >= min_games,
         )
+        .order_by(PlayerTrendSignal.recent_form_hits.desc() / PlayerTrendSignal.recent_form_games)
+        .limit(limit)
         .all()
     )
     rows = [_to_row(s) for s in signals]
