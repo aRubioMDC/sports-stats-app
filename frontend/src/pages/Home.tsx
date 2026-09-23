@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../api";
 import type { BoardGame, CheatsheetRow, Parlay, TrendGroups } from "../api";
@@ -12,6 +12,29 @@ import { Select } from "../components/Select";
 type StatusFilter = "all" | "final" | "scheduled";
 
 const GAMES_LIMIT = 6;
+
+// Skeleton loader components
+function MatchRowSkeleton() {
+  return (
+    <div className="animate-pulse rounded-xl border border-white/10 bg-[#12141a] p-4">
+      <div className="mb-3 flex items-center justify-between">
+        <div className="h-4 w-32 rounded bg-white/10" />
+        <div className="h-4 w-16 rounded bg-white/10" />
+      </div>
+      <div className="space-y-3">
+        {[1, 2].map((i) => (
+          <div key={i} className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div className="h-8 w-8 rounded-full bg-white/10" />
+              <div className="h-4 w-20 rounded bg-white/10" />
+            </div>
+            <div className="h-4 w-12 rounded bg-white/10" />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 function formatRelativeTime(iso: string | null): string {
   if (!iso) return "never";
@@ -38,6 +61,7 @@ export function Home() {
   const [showAllGames, setShowAllGames] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [teamSearch, setTeamSearch] = useState<string>("");
 
   useEffect(() => {
     api.trackEvent("page_view_home");
@@ -77,30 +101,28 @@ export function Home() {
 
   const finalCount = board.filter((r) => r.game.status === "final").length;
   const scheduledCount = board.length - finalCount;
-  const visibleRows = board.filter((r) => {
-    if (statusFilter === "final") return r.game.status === "final";
-    if (statusFilter === "scheduled") return r.game.status !== "final";
-    return true;
-  });
-
-  const totalWeeks = 22;
-
-  const statusChip = (value: StatusFilter, label: string, count: number) => (
-    <button
-      type="button"
-      onClick={() => {
-        setStatusFilter(value);
-        api.trackEvent("status_filter_change", { filter: value });
-      }}
-      className={`rounded-full px-3 py-1 text-xs font-semibold transition ${
-        statusFilter === value
-          ? "bg-white/15 text-white"
-          : "bg-transparent text-white/40 hover:text-white/70"
-      }`}
-    >
-      {label} <span className="text-white/30">{count}</span>
-    </button>
-  );
+  
+  // Filter by status first, then by team search
+  const visibleRows = useMemo(() => {
+    let filtered = board.filter((r) => {
+      if (statusFilter === "final") return r.game.status === "final";
+      if (statusFilter === "scheduled") return r.game.status !== "final";
+      return true;
+    });
+    
+    if (teamSearch.trim()) {
+      const query = teamSearch.toLowerCase();
+      filtered = filtered.filter(
+        (r) =>
+          r.game.home_team.name.toLowerCase().includes(query) ||
+          r.game.home_team.abbreviation.toLowerCase().includes(query) ||
+          r.game.away_team.name.toLowerCase().includes(query) ||
+          r.game.away_team.abbreviation.toLowerCase().includes(query)
+      );
+    }
+    
+    return filtered;
+  }, [board, statusFilter, teamSearch]);
 
   const firstBoardGame = board.find((r) => r.game.id === selectedGameId) ?? board[0];
 
@@ -125,28 +147,47 @@ export function Home() {
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-8">
+      {/* Header */}
       <div className="mb-1 flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-white">Matches with the context that matters</h1>
+        <div>
+          <h1 className="text-4xl font-black tracking-tight text-white">Week {week}</h1>
+          <p className="mt-1 text-sm text-white/60">Matchups with context that matters most</p>
+        </div>
         {season !== null && <span className="text-sm font-semibold text-white/40">{season} Season</span>}
       </div>
-      <div className="mb-4 flex items-center justify-between">
-        <p className="text-sm text-white/50">
-          Recent form, matchup ranks, and hit-rate trends to quickly spot the games worth watching.
-        </p>
-        <div className="flex shrink-0 items-center gap-2 text-xs text-white/40">
-          <span>Updated {formatRelativeTime(lastUpdated)}</span>
-          <button
-            type="button"
-            onClick={handleRefresh}
-            disabled={refreshing}
-            className="rounded-full border border-white/10 px-2.5 py-1 font-semibold text-white/60 transition hover:border-sky-400/40 hover:text-sky-400 disabled:opacity-50"
-          >
-            {refreshing ? "Refreshing…" : "↻ Refresh"}
-          </button>
+      
+      {/* Updated badge + Refresh */}
+      <div className="mb-6 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="flex h-2 w-2 items-center">
+            <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-400">
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+            </span>
+          </div>
+          <p className="text-xs text-white/50">Updated {formatRelativeTime(lastUpdated)}</p>
         </div>
+        <button
+          type="button"
+          onClick={handleRefresh}
+          disabled={refreshing}
+          className="inline-flex items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-semibold text-white/70 transition hover:border-emerald-400/40 hover:bg-white/10 hover:text-emerald-400 disabled:opacity-50"
+        >
+          {refreshing ? (
+            <>
+              <span className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-white/30 border-t-white/80" />
+              Refreshing…
+            </>
+          ) : (
+            <>
+              <span>↻</span>
+              Refresh Scores
+            </>
+          )}
+        </button>
       </div>
 
-      <div className="mb-4 flex w-full items-center gap-2 rounded-xl border border-white/10 bg-[#12141a] p-1 sm:hidden">
+      {/* Week Navigation */}
+      <div className="mb-6 flex w-full items-center gap-2 rounded-xl border border-white/10 bg-[#12141a] p-1 sm:hidden">
         <button
           type="button"
           onClick={() => setWeek(Math.max(1, (week ?? 1) - 1))}
@@ -163,7 +204,7 @@ export function Home() {
           wrapperClassName="min-w-0 flex-1"
           className="border-transparent bg-transparent text-center hover:border-transparent"
         >
-          {Array.from({ length: totalWeeks }, (_, i) => i + 1).map((w) => (
+          {Array.from({ length: 22 }, (_, i) => i + 1).map((w) => (
             <option key={w} value={w}>
               Week {w}
             </option>
@@ -171,8 +212,8 @@ export function Home() {
         </Select>
         <button
           type="button"
-          onClick={() => setWeek(Math.min(totalWeeks, (week ?? 1) + 1))}
-          disabled={week === totalWeeks}
+          onClick={() => setWeek(Math.min(22, (week ?? 1) + 1))}
+          disabled={week === 22}
           aria-label="Next week"
           className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-lg text-white/60 transition hover:bg-white/5 hover:text-white disabled:opacity-30"
         >
@@ -180,7 +221,7 @@ export function Home() {
         </button>
       </div>
 
-      <div className="mb-4 hidden w-full items-center gap-2 rounded-xl border border-white/10 bg-[#12141a] p-1 sm:flex">
+      <div className="mb-6 hidden w-full items-center gap-2 rounded-xl border border-white/10 bg-[#12141a] p-1 sm:flex">
         <button
           type="button"
           onClick={() => setWeek(Math.max(1, (week ?? 1) - 1))}
@@ -191,14 +232,16 @@ export function Home() {
           ‹
         </button>
         {[(week ?? 1) - 1, week ?? 1, (week ?? 1) + 1]
-          .filter((w) => w >= 1 && w <= totalWeeks)
+          .filter((w) => w >= 1 && w <= 22)
           .map((w) => (
             <button
               key={w}
               type="button"
               onClick={() => setWeek(w)}
               className={`flex-1 rounded-lg py-2 text-sm font-semibold transition ${
-                w === week ? "bg-sky-500 text-white" : "text-white/50 hover:bg-white/5 hover:text-white"
+                w === week
+                  ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30"
+                  : "text-white/50 hover:bg-white/5 hover:text-white"
               }`}
             >
               Week {w}
@@ -206,8 +249,8 @@ export function Home() {
           ))}
         <button
           type="button"
-          onClick={() => setWeek(Math.min(totalWeeks, (week ?? 1) + 1))}
-          disabled={week === totalWeeks}
+          onClick={() => setWeek(Math.min(22, (week ?? 1) + 1))}
+          disabled={week === 22}
           aria-label="Next week"
           className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-lg text-white/60 transition hover:bg-white/5 hover:text-white disabled:opacity-30"
         >
@@ -215,46 +258,119 @@ export function Home() {
         </button>
       </div>
 
-      <div className="mb-4 flex items-center justify-between border-b border-white/10 pb-3">
+      {/* Status & Search Bar */}
+      <div className="mb-6 flex flex-col items-center justify-between gap-3 rounded-xl border border-white/10 bg-[#12141a] p-3 sm:flex-row">
         <div className="flex items-center gap-1">
-          {statusChip("all", "All", board.length)}
-          {statusChip("scheduled", "Upcoming", scheduledCount)}
-          {statusChip("final", "Final", finalCount)}
-        </div>
-        {visibleRows.length > GAMES_LIMIT && (
           <button
             type="button"
-            onClick={() => setShowAllGames((v) => !v)}
-            className="text-sm font-semibold text-sky-400 hover:underline"
+            onClick={() => {
+              setStatusFilter("all");
+              api.trackEvent("status_filter_change", { filter: "all" });
+            }}
+            className={`rounded-full px-3 py-1.5 text-xs font-semibold transition ${
+              statusFilter === "all"
+                ? "bg-white/15 text-white"
+                : "bg-transparent text-white/40 hover:text-white/70"
+            }`}
           >
-            {showAllGames ? "Show less" : "Show more"}
+            All <span className="text-white/30 ml-1">{board.length}</span>
           </button>
-        )}
-      </div>
-
-      {loading && <p className="text-white/50">Loading games…</p>}
-      {error && <p className="text-red-400">{error}</p>}
-
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {(showAllGames ? visibleRows : visibleRows.slice(0, GAMES_LIMIT)).map((row, i) => (
-          <div
-            key={row.game.id}
-            className="animate-[fadeInUp_0.35s_ease-out_backwards]"
-            style={{ animationDelay: `${Math.min(i, 8) * 40}ms` }}
+          <button
+            type="button"
+            onClick={() => {
+              setStatusFilter("scheduled");
+              api.trackEvent("status_filter_change", { filter: "scheduled" });
+            }}
+            className={`rounded-full px-3 py-1.5 text-xs font-semibold transition ${
+              statusFilter === "scheduled"
+                ? "bg-white/15 text-white"
+                : "bg-transparent text-white/40 hover:text-white/70"
+            }`}
           >
-            <MatchRow row={row} />
-          </div>
-        ))}
-        {!loading && visibleRows.length === 0 && !error && (
-          <p className="text-white/40">No games found for this filter.</p>
-        )}
+            Upcoming <span className="text-white/30 ml-1">{scheduledCount}</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setStatusFilter("final");
+              api.trackEvent("status_filter_change", { filter: "final" });
+            }}
+            className={`rounded-full px-3 py-1.5 text-xs font-semibold transition ${
+              statusFilter === "final"
+                ? "bg-white/15 text-white"
+                : "bg-transparent text-white/40 hover:text-white/70"
+            }`}
+          >
+            Final <span className="text-white/30 ml-1">{finalCount}</span>
+          </button>
+        </div>
+
+        {/* Team Search */}
+        <input
+          type="text"
+          placeholder="Search teams…"
+          value={teamSearch}
+          onChange={(e) => setTeamSearch(e.target.value)}
+          className="h-8 flex-1 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-xs text-white placeholder-white/40 transition focus:border-emerald-400/40 focus:bg-white/10 focus:outline-none focus:ring-1 focus:ring-emerald-400/20 sm:max-w-xs"
+        />
       </div>
 
+      {/* Games Grid */}
+      {loading && (
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {Array.from({ length: GAMES_LIMIT }).map((_, i) => (
+            <MatchRowSkeleton key={i} />
+          ))}
+        </div>
+      )}
+      {error && <p className="rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-400">{error}</p>}
+
+      {!loading && (
+        <>
+          <div className="mb-4 flex items-center justify-between">
+            <p className="text-xs text-white/60">
+              Showing <span className="font-semibold text-white">{visibleRows.length}</span> games
+              {teamSearch.trim() && ` (filtered by "${teamSearch}")`}
+            </p>
+            {visibleRows.length > GAMES_LIMIT && (
+              <button
+                type="button"
+                onClick={() => setShowAllGames((v) => !v)}
+                className="text-xs font-semibold text-emerald-400 hover:underline"
+              >
+                {showAllGames ? "Show less" : "Show all"}
+              </button>
+            )}
+          </div>
+
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {(showAllGames ? visibleRows : visibleRows.slice(0, GAMES_LIMIT)).map((row, i) => (
+              <div
+                key={row.game.id}
+                className="animate-[fadeInUp_0.35s_ease-out_backwards]"
+                style={{ animationDelay: `${Math.min(i, 8) * 40}ms` }}
+              >
+                <MatchRow row={row} />
+              </div>
+            ))}
+            {visibleRows.length === 0 && (
+              <div className="col-span-full rounded-lg border border-dashed border-white/10 bg-white/5 px-4 py-8 text-center">
+                <p className="text-sm text-white/60">No games match your filters</p>
+              </div>
+            )}
+          </div>
+        </>
+      )}
+
+      {/* Trending Section */}
       {trends.length > 0 && (
-        <div className="mt-10">
-          <div className="mb-3 flex items-center justify-between">
-            <h2 className="text-lg font-bold text-white">Trending Today</h2>
-            <Link to="/cheatsheet" className="text-sm font-semibold text-sky-400 hover:underline">
+        <div className="mt-12">
+          <div className="mb-4 flex items-center justify-between border-b border-white/10 pb-3">
+            <div>
+              <h2 className="text-lg font-bold text-white">🔥 Trending Today</h2>
+              <p className="mt-1 text-xs text-white/50">High-hit-rate props across all games</p>
+            </div>
+            <Link to="/trends" className="text-xs font-semibold text-emerald-400 hover:underline">
               View all →
             </Link>
           </div>
@@ -266,8 +382,9 @@ export function Home() {
         </div>
       )}
 
+      {/* Cheatsheet Groups */}
       {trendGroups && (
-        <div className="mt-10">
+        <div className="mt-12">
           <CheatsheetGroups
             recentForm={trendGroups.recent_form}
             versusOpponent={trendGroups.versus_opponent}
@@ -279,14 +396,16 @@ export function Home() {
         </div>
       )}
 
+      {/* Advanced Tools */}
       {trendGroups && (trendGroups.injury_impact.length > 0 || trendGroups.opponent_rank.length > 0) && (
-        <div className="mt-10">
+        <div className="mt-12">
           <AdvancedToolsWidget injuryRows={trendGroups.injury_impact} opponentRankRows={trendGroups.opponent_rank} />
         </div>
       )}
 
+      {/* Parlays Widget */}
       {firstBoardGame && parlays.length > 0 && (
-        <div className="mt-10">
+        <div className="mt-12">
           <ParlaysWidget
             game={firstBoardGame.game}
             parlays={parlays}
