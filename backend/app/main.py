@@ -7,8 +7,10 @@ from apscheduler.schedulers.background import BackgroundScheduler
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
+from app.core.cache import clear_cache
 from app.core.sport_registry import SPORTS
 from app.db import SessionLocal
 from app.models import AnalyticsEvent
@@ -18,6 +20,15 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name
 logger = logging.getLogger("sportstats")
 
 app = FastAPI(title="Sports Stats & Trends API")
+
+# Enable CORS for frontend development
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5174", "http://localhost:4174", "http://127.0.0.1:5174", "http://127.0.0.1:4174"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 @app.exception_handler(Exception)
@@ -99,6 +110,7 @@ def refresh_sport_scores(sport: str):
         raise HTTPException(status_code=404, detail=f"Unknown sport '{sport}'")
     SPORTS[sport].refresh_scores()
     _last_updated[sport] = datetime.now(timezone.utc)
+    clear_cache()
     return {"last_updated": _last_updated[sport].isoformat()}
 
 
@@ -109,12 +121,14 @@ def _refresh_all_sports_scores() -> None:
     for adapter in SPORTS.values():
         adapter.refresh_scores()
         _last_updated[adapter.slug] = datetime.now(timezone.utc)
+    clear_cache()
 
 
 def _run_all_sports_etl() -> None:
     for adapter in SPORTS.values():
         adapter.ingest_all()
         _last_updated[adapter.slug] = datetime.now(timezone.utc)
+    clear_cache()
 
 
 @app.on_event("startup")
