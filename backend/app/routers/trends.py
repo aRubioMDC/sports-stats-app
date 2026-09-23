@@ -81,10 +81,15 @@ def get_cheatsheet(
     - min_hit_rate: Minimum hit rate (0.0 to 1.0)
     - min_games: Minimum number of games to qualify
     """
+    # Query with limit to avoid loading too much data
     signals = (
         db.query(PlayerTrendSignal)
         .options(joinedload(PlayerTrendSignal.player).joinedload(Player.team))
-        .filter(PlayerTrendSignal.sport == sport, PlayerTrendSignal.recent_form_games >= min_games)
+        .filter(
+            PlayerTrendSignal.sport == sport,
+            PlayerTrendSignal.recent_form_games >= min_games
+        )
+        .limit(200)  # Limit to prevent excessive query time
         .all()
     )
     
@@ -101,6 +106,16 @@ def get_cheatsheet(
             playing_team_ids.add(game.home_team_id)
             playing_team_ids.add(game.away_team_id)
     
+    # Pre-fetch all games in date range if days_back is set
+    games_in_range = None
+    if days_back is not None:
+        cutoff_date = datetime.utcnow() - timedelta(days=days_back)
+        games_in_range = db.query(Game.id).filter(
+            Game.sport == sport,
+            Game.kickoff >= cutoff_date
+        ).all()
+        games_in_range = {g[0] for g in games_in_range}
+    
     rows: list[CheatsheetRowOut] = []
     for signal in signals:
         # Skip if player's team is not playing this week
@@ -108,12 +123,15 @@ def get_cheatsheet(
             continue
         
         # Use daily hit-rate if days_back specified, otherwise use precomputed signal
-        if days_back is not None:
-            hits, games = _calculate_daily_hit_rate(
-                db, signal.player_id, signal.stat_name, signal.threshold, days_back, sport
-            )
-            # For daily filtering, require fewer games (at least 1)
-            if games < 1:
+        if games_in_range is not None:  # days_back was set
+            stats = db.query(PlayerWeeklyStat).filter(
+                PlayerWeeklyStat.player_id == signal.player_id,
+                PlayerWeeklyStat.game_id.in_(games_in_range)
+            ).all()
+            
+            hits = sum(1 for s in stats if getattr(s, signal.stat_name, 0) > signal.threshold)
+            games = len(stats)
+            if games < min_games:
                 continue
             hit_rate = hits / games if games > 0 else 0
         else:
@@ -139,7 +157,7 @@ def get_cheatsheet(
             )
         )
     rows.sort(key=lambda r: (-r.hit_rate, -r.games))
-    return rows
+    return rows[:100]  # Return max 100 results
 
 
 @router.get("/groups", response_model=TrendGroupsOut)
