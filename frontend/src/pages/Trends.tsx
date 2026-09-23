@@ -35,15 +35,36 @@ type TrendCard = {
 // Mock sportsbooks for variety
 const SPORTSBOOKS = ["FanDuel", "DraftKings", "BetMGM", "Caesars", "Betano", "PointsBet"];
 
-// Team emoji mappings
-const TEAM_EMOJIS: Record<string, string> = {
-  DAL: "🤠", NYG: "🗽", PHI: "🦅", WAS: "🟥",
-  DEN: "🐴", KC: "🔴", LAC: "⚡", LV: "🏴",
-  BAL: "🦅", BUF: "🦬", MIA: "🐬", NE: "🏈",
-  HOU: "🐮", IND: "🔵", JAX: "🐱", TEN: "🎸",
-  CHI: "🐻", DET: "🦁", GB: "📦", MIN: "🟣",
-  ATL: "🔴", CAR: "🐈", NO: "⚫", TB: "🏴‍☠️",
-  ARI: "🐦", LAR: "🐏", SF: "🟥", SEA: "🦅",
+// Team logos (NFL official SVG URLs)
+const TEAM_LOGOS: Record<string, string> = {
+  DAL: "https://static.nfl.com/f_auto,w_100/teams/logos/dallas-cowboys.svg",
+  NYG: "https://static.nfl.com/f_auto,w_100/teams/logos/new-york-giants.svg",
+  PHI: "https://static.nfl.com/f_auto,w_100/teams/logos/philadelphia-eagles.svg",
+  WAS: "https://static.nfl.com/f_auto,w_100/teams/logos/washington-commanders.svg",
+  DEN: "https://static.nfl.com/f_auto,w_100/teams/logos/denver-broncos.svg",
+  KC: "https://static.nfl.com/f_auto,w_100/teams/logos/kansas-city-chiefs.svg",
+  LAC: "https://static.nfl.com/f_auto,w_100/teams/logos/los-angeles-chargers.svg",
+  LV: "https://static.nfl.com/f_auto,w_100/teams/logos/las-vegas-raiders.svg",
+  BAL: "https://static.nfl.com/f_auto,w_100/teams/logos/baltimore-ravens.svg",
+  BUF: "https://static.nfl.com/f_auto,w_100/teams/logos/buffalo-bills.svg",
+  MIA: "https://static.nfl.com/f_auto,w_100/teams/logos/miami-dolphins.svg",
+  NE: "https://static.nfl.com/f_auto,w_100/teams/logos/new-england-patriots.svg",
+  HOU: "https://static.nfl.com/f_auto,w_100/teams/logos/houston-texans.svg",
+  IND: "https://static.nfl.com/f_auto,w_100/teams/logos/indianapolis-colts.svg",
+  JAX: "https://static.nfl.com/f_auto,w_100/teams/logos/jacksonville-jaguars.svg",
+  TEN: "https://static.nfl.com/f_auto,w_100/teams/logos/tennessee-titans.svg",
+  CHI: "https://static.nfl.com/f_auto,w_100/teams/logos/chicago-bears.svg",
+  DET: "https://static.nfl.com/f_auto,w_100/teams/logos/detroit-lions.svg",
+  GB: "https://static.nfl.com/f_auto,w_100/teams/logos/green-bay-packers.svg",
+  MIN: "https://static.nfl.com/f_auto,w_100/teams/logos/minnesota-vikings.svg",
+  ATL: "https://static.nfl.com/f_auto,w_100/teams/logos/atlanta-falcons.svg",
+  CAR: "https://static.nfl.com/f_auto,w_100/teams/logos/carolina-panthers.svg",
+  NO: "https://static.nfl.com/f_auto,w_100/teams/logos/new-orleans-saints.svg",
+  TB: "https://static.nfl.com/f_auto,w_100/teams/logos/tampa-bay-buccaneers.svg",
+  ARI: "https://static.nfl.com/f_auto,w_100/teams/logos/arizona-cardinals.svg",
+  LAR: "https://static.nfl.com/f_auto,w_100/teams/logos/los-angeles-rams.svg",
+  SF: "https://static.nfl.com/f_auto,w_100/teams/logos/san-francisco-49ers.svg",
+  SEA: "https://static.nfl.com/f_auto,w_100/teams/logos/seattle-seahawks.svg",
 };
 
 function calculateProjectedROI(hitRate: number, price: number): number {
@@ -143,7 +164,6 @@ export function Trends() {
   const [trendGroups, setTrendGroups] = useState<TrendGroups | null>(null);
   const [samplePrices, setSamplePrices] = useState<number[]>([]);
   const [loading, setLoading] = useState(true);
-  const [betSlip, setBetSlip] = useState<TrendCard[]>([]);
   const [minHitRate, setMinHitRate] = useState(0.60);
   const [selectedCard, setSelectedCard] = useState<TrendCard | null>(null);
 
@@ -262,9 +282,8 @@ export function Trends() {
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8">
-      <div className="mb-6 grid gap-6 lg:grid-cols-[1fr_320px]">
+      <div>
         {/* Main Content */}
-        <div>
           {/* Header */}
           <div className="mb-6">
             <div className="mb-4 flex items-center justify-between">
@@ -347,86 +366,18 @@ export function Trends() {
                 <TrendCardComponent
                   key={card.id}
                   card={card}
-                  isInSlip={betSlip.some((b) => b.id === card.id)}
                   onSelect={() => setSelectedCard(card)}
-                  onAddToSlip={() => setBetSlip((prev) => [...prev, card])}
-                  onRemoveFromSlip={() => setBetSlip((prev) => prev.filter((b) => b.id !== card.id))}
                 />
               ))}
             </div>
           )}
         </div>
 
-        {/* Bet Slip Sidebar */}
-        <div className="rounded-2xl border border-white/10 bg-[#0f1117] p-4 lg:sticky lg:top-4 lg:h-fit">
-          <h2 className="mb-4 text-lg font-bold text-white">Bet Slip</h2>
-
-          {betSlip.length === 0 ? (
-            <div className="rounded-2xl border border-dashed border-white/10 bg-[#111620] p-4 text-center text-sm text-white/40">
-              Add trends to build your parlay
-            </div>
-          ) : (
-            <>
-              <div className="mb-4 space-y-2 max-h-96 overflow-y-auto">
-                {betSlip.map((bet) => (
-                  <div key={bet.id} className="rounded-lg border border-white/10 bg-[#111620] p-2">
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="min-w-0">
-                        <div className="truncate text-xs font-semibold text-white">{bet.playerName}</div>
-                        <div className="truncate text-xs text-white/50">{bet.stat}</div>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => setBetSlip((prev) => prev.filter((b) => b.id !== bet.id))}
-                        className="flex-shrink-0 text-lg text-white/40 hover:text-white"
-                      >
-                        ✕
-                      </button>
-                    </div>
-                    <div className="mt-1 text-xs font-bold text-sky-400">{bet.price >= 0 ? "+" : ""}{bet.price}</div>
-                  </div>
-                ))}
-              </div>
-
-              {/* Parlay Stats */}
-              <div className="mb-4 space-y-2 rounded-lg border border-white/10 bg-[#111620] p-3">
-                <div className="flex justify-between text-xs">
-                  <span className="text-white/60">Implied Win Prob:</span>
-                  <span className="font-bold text-white">
-                    {Math.round(
-                      (betSlip.reduce((acc, b) => acc * b.hitRate, 1) * 100)
-                    )}%
-                  </span>
-                </div>
-                <div className="flex justify-between text-xs">
-                  <span className="text-white/60">Expected ROI:</span>
-                  <span className={`font-bold ${betSlip.some((b) => b.projectedROI > 0) ? "text-emerald-400" : "text-rose-400"}`}>
-                    {Math.round(betSlip.reduce((acc, b) => acc + b.projectedROI, 0) / Math.max(betSlip.length, 1))}%
-                  </span>
-                </div>
-              </div>
-
-              <button
-                type="button"
-                className="w-full rounded-lg bg-emerald-500 px-4 py-2 text-sm font-bold text-white hover:bg-emerald-600"
-              >
-                🎯 Place Parlay ({betSlip.length})
-              </button>
-            </>
-          )}
-        </div>
-      </div>
-
-      {/* Detail Modal */}
+        {/* Detail Modal */}
       {selectedCard && (
         <TrendDetailModal
           card={selectedCard}
           onClose={() => setSelectedCard(null)}
-          onAddToSlip={() => {
-            if (!betSlip.some((b) => b.id === selectedCard.id)) {
-              setBetSlip((prev) => [...prev, selectedCard]);
-            }
-          }}
         />
       )}
     </div>
@@ -435,18 +386,12 @@ export function Trends() {
 
 interface TrendCardComponentProps {
   card: TrendCard;
-  isInSlip: boolean;
   onSelect: () => void;
-  onAddToSlip: () => void;
-  onRemoveFromSlip: () => void;
 }
 
 function TrendCardComponent({
   card,
-  isInSlip,
   onSelect,
-  onAddToSlip,
-  onRemoveFromSlip,
 }: TrendCardComponentProps) {
   const confidenceColors = {
     high: "bg-emerald-500/20 border-emerald-500/50 text-emerald-200",
@@ -470,16 +415,16 @@ function TrendCardComponent({
   return (
     <div
       onClick={onSelect}
-      className={`cursor-pointer rounded-2xl border p-4 transition ${
-        isInSlip
-          ? "border-sky-400/70 bg-sky-500/10"
-          : "border-white/10 bg-[#111620] hover:border-white/20 hover:bg-white/5"
-      }`}
+      className={`cursor-pointer rounded-2xl border border-white/10 bg-[#111620] p-4 transition hover:border-white/20 hover:bg-white/5`}
     >
       {/* Header */}
       <div className="mb-3 flex items-start justify-between gap-3">
         <div className="flex items-start gap-2">
-          <span className="text-2xl">{TEAM_EMOJIS[card.team] || "🏈"}</span>
+          <img 
+            src={TEAM_LOGOS[card.team] || "🏈"} 
+            alt={card.team} 
+            className="w-8 h-8 object-contain rounded"
+          />
           <div>
             <div className="flex items-center gap-2">
               <span className="text-lg font-bold text-white">{card.playerName}</span>
@@ -488,21 +433,6 @@ function TrendCardComponent({
             <div className="mt-1 text-sm text-white/60">{card.matchup}</div>
           </div>
         </div>
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            if (isInSlip) onRemoveFromSlip();
-            else onAddToSlip();
-          }}
-          className={`flex-shrink-0 rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
-            isInSlip
-              ? "bg-sky-500 text-white hover:bg-sky-600"
-              : "border border-white/10 bg-white/3 text-white/70 hover:bg-white/5"
-          }`}
-        >
-          {isInSlip ? "✓ In Slip" : "+ Add"}
-        </button>
       </div>
 
       {/* Stat Label */}
@@ -560,10 +490,9 @@ function TrendCardComponent({
 interface TrendDetailModalProps {
   card: TrendCard;
   onClose: () => void;
-  onAddToSlip: () => void;
 }
 
-function TrendDetailModal({ card, onClose, onAddToSlip }: TrendDetailModalProps) {
+function TrendDetailModal({ card, onClose }: TrendDetailModalProps) {
   const detailData = generateDetailData(card);
 
   return (
@@ -579,7 +508,11 @@ function TrendDetailModal({ card, onClose, onAddToSlip }: TrendDetailModalProps)
         <div className="mb-6 flex items-start justify-between gap-4">
           <div>
             <div className="flex items-center gap-3 mb-2">
-              <span className="text-4xl">{TEAM_EMOJIS[card.team] || "🏈"}</span>
+              <img 
+                src={TEAM_LOGOS[card.team] || "🏈"} 
+                alt={card.team} 
+                className="w-12 h-12 object-contain rounded"
+              />
               <div>
                 <h1 className="text-3xl font-black text-white">{card.playerName}</h1>
                 <p className="text-white/60">{card.team} • {card.matchup}</p>
@@ -683,7 +616,13 @@ function TrendDetailModal({ card, onClose, onAddToSlip }: TrendDetailModalProps)
                 {detailData.gamelog.map((game, idx) => (
                   <tr key={idx} className="border-b border-white/5 hover:bg-white/3">
                     <td className="px-3 py-2 text-white">{game.date}</td>
-                    <td className="px-3 py-2 text-white">{TEAM_EMOJIS[game.opponent] || game.opponent}</td>
+                    <td className="px-3 py-2 text-white">
+                      <img 
+                        src={TEAM_LOGOS[game.opponent] || "🏈"} 
+                        alt={game.opponent}
+                        className="w-5 h-5 object-contain"
+                      />
+                    </td>
                     <td className="px-3 py-2">
                       <span
                         className={`font-bold ${
@@ -739,22 +678,13 @@ function TrendDetailModal({ card, onClose, onAddToSlip }: TrendDetailModalProps)
           </div>
         </div>
 
-        {/* Close and Add Button */}
+        {/* Close Button */}
         <div className="flex gap-3">
           <button
             onClick={onClose}
             className="flex-1 rounded-lg border border-white/10 px-4 py-2 text-sm font-bold text-white hover:bg-white/5"
           >
             Close
-          </button>
-          <button
-            onClick={() => {
-              onAddToSlip();
-              onClose();
-            }}
-            className="flex-1 rounded-lg bg-emerald-500 px-4 py-2 text-sm font-bold text-white hover:bg-emerald-600"
-          >
-            + Add to Slip
           </button>
         </div>
       </div>
