@@ -82,6 +82,7 @@ def get_cheatsheet(
     - min_games: Minimum number of games to qualify
     """
     # Query with limit to avoid loading too much data
+    # Order by recent_form_hits DESC to prioritize high hit-rate signals
     signals = (
         db.query(PlayerTrendSignal)
         .options(joinedload(PlayerTrendSignal.player).joinedload(Player.team))
@@ -89,7 +90,8 @@ def get_cheatsheet(
             PlayerTrendSignal.sport == sport,
             PlayerTrendSignal.recent_form_games >= min_games
         )
-        .limit(200)  # Limit to prevent excessive query time
+        .order_by(PlayerTrendSignal.recent_form_hits.desc())  # Prioritize high hit rates
+        .limit(5000)  # Increased from 200 to capture enough high-hit-rate signals
         .all()
     )
     
