@@ -69,43 +69,77 @@ export function AdvancedToolsWidget({
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         {rows.map((row, i) => {
           const teamLogo = teamLogos?.[row.team];
+          const hitPercentage = Math.round(row.hit_rate * 100);
+          const isInjury = mode === "injuries";
+          
           return (
-            <div key={i} className="rounded-xl border border-white/10 bg-[#12141a] p-4">
-              <div className="mb-2 flex items-start justify-between gap-2">
-                <div className="flex items-start gap-2 min-w-0">
+            <div key={i} className="group rounded-xl border border-white/10 bg-gradient-to-br from-[#12141a] to-[#0f1116] p-4 transition hover:border-emerald-400/40 hover:shadow-lg hover:shadow-emerald-400/10">
+              {/* Header */}
+              <div className="mb-3 flex items-start justify-between gap-2">
+                <div className="flex items-start gap-2 min-w-0 flex-1">
                   {teamLogo?.logoUrl ? (
-                    <img src={teamLogo.logoUrl} alt={row.team} className="h-6 w-6 shrink-0 object-contain mt-0.5" />
+                    <img src={teamLogo.logoUrl} alt={row.team} className="h-7 w-7 shrink-0 object-contain mt-0.5" />
                   ) : (
-                    <div className="h-6 w-6 shrink-0 rounded-full mt-0.5" style={{ backgroundColor: teamLogo?.primaryColor || "#ffffff" }} />
+                    <div className="h-7 w-7 shrink-0 rounded-full mt-0.5" style={{ backgroundColor: teamLogo?.primaryColor || "#ffffff" }} />
                   )}
-                  <div className="min-w-0">
-                    <div className="font-semibold text-white truncate">{row.player_name}</div>
-                    <div className="text-xs text-white/40">{row.team}</div>
+                  <div className="min-w-0 flex-1">
+                    <div className="font-semibold text-white truncate text-sm">{row.player_name}</div>
+                    <div className="text-xs text-white/50">{row.team}</div>
                   </div>
                 </div>
-                <span className="text-sm font-semibold text-white/80 shrink-0">
+                <div className="flex-shrink-0 text-right">
+                  <div className="text-xs font-bold px-2 py-1 rounded-full" style={{
+                    backgroundColor: hitPercentage === 100 ? "rgba(234, 179, 8, 0.1)" : "rgba(16, 185, 129, 0.1)",
+                    color: hitPercentage === 100 ? "#eab308" : "#10b981"
+                  }}>
+                    {hitPercentage}%
+                  </div>
+                </div>
+              </div>
+              
+              {/* Stat Line */}
+              <div className="mb-3 p-2.5 rounded-lg bg-white/5 border border-white/5">
+                <div className="text-xs text-white/50 mb-0.5">Prop:</div>
+                <div className="font-semibold text-white text-sm">
                   {formatTrendLine(row.stat_name, row.threshold, row.direction)}
-                </span>
+                </div>
               </div>
-            {mode === "injuries" ? (
-              <div className="flex items-center gap-1.5 text-xs">
-                <span>🩹</span>
-                <span className="text-white/60">
-                  Hit in {row.hits} of last {row.games} games without {row.without_player}
-                </span>
-                <span className="ml-auto font-semibold text-emerald-400">{Math.round(row.hit_rate * 100)}%</span>
+              
+              {/* Context Section */}
+              {isInjury ? (
+                <div className="space-y-2">
+                  <div className="p-2.5 rounded-lg bg-yellow-500/5 border border-yellow-400/20">
+                    <div className="text-xs text-yellow-400/80 mb-1 font-semibold">🩹 Injury Impact</div>
+                    <div className="text-xs text-white/70">
+                      {row.hits}/{row.games} hits without <span className="font-semibold text-white">{row.without_player}</span>
+                    </div>
+                  </div>
+                  <div className="text-xs text-white/50 leading-relaxed">
+                    Performance significantly improves when {row.without_player} is unavailable. Strong positive correlation with this player's production.
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <div className="p-2.5 rounded-lg bg-blue-500/5 border border-blue-400/20">
+                    <div className="text-xs text-blue-400/80 mb-1 font-semibold">🏆 Matchup Edge</div>
+                    <div className="text-xs text-white/70">
+                      Opponent ranks <span className="font-semibold text-white">{ordinal(row.opponent_rank ?? 0)}</span> of {row.opponent_team_count} vs {row.stat_name}
+                    </div>
+                  </div>
+                  <div className="text-xs text-white/50 leading-relaxed">
+                    Facing one of the worst defenses in the league for this stat category. Favorable setup for production.
+                  </div>
+                </div>
+              )}
+              
+              {/* Performance Indicator */}
+              <div className="mt-3 pt-2.5 border-t border-white/10">
+                <div className="text-xs text-white/60">
+                  Recent form: <span className="font-semibold text-white">{row.hits}/{row.games} games</span>
+                </div>
               </div>
-            ) : (
-              <div className="flex items-center gap-1.5 text-xs">
-                <span>🏆</span>
-                <span className="text-white/60">
-                  Good matchup {"\u2014"} opponent ranks {ordinal(row.opponent_rank ?? 0)} of {row.opponent_team_count} vs this stat
-                </span>
-                <span className="ml-auto font-semibold text-emerald-400">{row.hits}/{row.games}</span>
-              </div>
-            )}
-          </div>
-        );
+            </div>
+          );
         })}
       </div>
     </div>

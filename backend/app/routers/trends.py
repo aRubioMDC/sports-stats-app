@@ -146,6 +146,22 @@ def get_cheatsheet(
         if hit_rate < min_hit_rate:
             continue
         
+        # Find next game for this player's team
+        game_id = None
+        game_kickoff = None
+        is_home = None
+        if signal.player.team_id:
+            next_game = db.query(Game).filter(
+                Game.sport == sport,
+                ((Game.home_team_id == signal.player.team_id) | (Game.away_team_id == signal.player.team_id)),
+                Game.status.in_(["scheduled", "in_progress"])  # Only upcoming/in-progress games
+            ).order_by(Game.kickoff.asc()).first()
+            
+            if next_game:
+                game_id = next_game.id
+                game_kickoff = next_game.kickoff.isoformat() if next_game.kickoff else None
+                is_home = next_game.home_team_id == signal.player.team_id
+        
         rows.append(
             CheatsheetRowOut(
                 player_name=signal.player.full_name,
@@ -156,6 +172,15 @@ def get_cheatsheet(
                 hits=hits,
                 games=games,
                 hit_rate=round(hit_rate, 3),
+                # Include contextual signal data for Linemate-style badges
+                split_hits=signal.split_hits if signal.split_games > 0 else None,
+                split_games=signal.split_games if signal.split_games > 0 else None,
+                h2h_hits=signal.h2h_hits if signal.h2h_games > 0 else None,
+                h2h_games=signal.h2h_games if signal.h2h_games > 0 else None,
+                # Game information for sorting by upcoming games
+                game_id=game_id,
+                game_kickoff=game_kickoff,
+                is_home=is_home,
             )
         )
     rows.sort(key=lambda r: (-r.hit_rate, -r.games))

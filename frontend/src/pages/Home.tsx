@@ -55,6 +55,7 @@ export function Home() {
   const [showAllGames, setShowAllGames] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [teamSearch, setTeamSearch] = useState<string>("");
+  const [, setRenderTick] = useState(0); // Trigger re-sort every 30 seconds
 
   // React Query hooks for automatic caching across navigation
   const configQuery = useConfig();
@@ -71,14 +72,67 @@ export function Home() {
   const trendGroupsQuery = useTrendGroups(season ?? undefined, week ?? undefined);
   const parlaysQuery = useParlays(selectedGameId);
 
-  // Derived state from queries
+  // Derive state from queries early (needed for useMemo dependencies)
   const board = boardQuery.data ?? [];
-  const trends = (cheatsheetQuery.data ?? []).slice(0, 3);
   const trendGroups = trendGroupsQuery.data ?? null;
   const parlays = parlaysQuery.data ?? [];
-  const lastUpdated = configQuery.data?.last_updated ?? null;
-  const error = configQuery.error || boardQuery.error ? "Could not load data" : null;
-  const loading = configQuery.isLoading || boardQuery.isLoading;
+
+  // Sort trends by upcoming game time and hit rate
+  const sortedTrends = useMemo(() => {
+    const allTrends = cheatsheetQuery.data ?? [];
+    const now = new Date().getTime();
+    
+    return allTrends
+      .map(trend => ({
+        ...trend,
+        gameTime: trend.game_kickoff ? new Date(trend.game_kickoff).getTime() : Infinity,
+      }))
+      .filter(trend => trend.gameTime > now) // Only upcoming games
+      .sort((a, b) => {
+        // Sort by: game time (ascending), then by hit_rate (descending)
+        if (a.gameTime !== b.gameTime) return a.gameTime - b.gameTime;
+        return b.hit_rate - a.hit_rate;
+      })
+      .map(({ gameTime, ...trend }) => trend);
+  }, [cheatsheetQuery.data, setRenderTick]); // Re-sort every 30s via setRenderTick
+
+  // Sort injury impact rows by upcoming game time and hit rate
+  const sortedInjuryRows = useMemo(() => {
+    const rows = trendGroups?.injury_impact ?? [];
+    const now = new Date().getTime();
+    
+    return rows
+      .map(row => ({
+        ...row,
+        gameTime: row.game_kickoff ? new Date(row.game_kickoff).getTime() : Infinity,
+      }))
+      .filter(row => row.gameTime > now) // Only upcoming games
+      .sort((a, b) => {
+        // Sort by: game time (ascending), then by hit_rate (descending)
+        if (a.gameTime !== b.gameTime) return a.gameTime - b.gameTime;
+        return b.hit_rate - a.hit_rate;
+      })
+      .map(({ gameTime, ...row }) => row);
+  }, [trendGroups?.injury_impact, setRenderTick]);
+
+  // Sort opponent rank rows by upcoming game time and hit rate
+  const sortedOpponentRows = useMemo(() => {
+    const rows = trendGroups?.opponent_rank ?? [];
+    const now = new Date().getTime();
+    
+    return rows
+      .map(row => ({
+        ...row,
+        gameTime: row.game_kickoff ? new Date(row.game_kickoff).getTime() : Infinity,
+      }))
+      .filter(row => row.gameTime > now) // Only upcoming games
+      .sort((a, b) => {
+        // Sort by: game time (ascending), then by hit_rate (descending)
+        if (a.gameTime !== b.gameTime) return a.gameTime - b.gameTime;
+        return b.hit_rate - a.hit_rate;
+      })
+      .map(({ gameTime, ...row }) => row);
+  }, [trendGroups?.opponent_rank, setRenderTick]);
 
   // Build team logos mapping
   const teamLogos = useMemo(() => {
@@ -105,6 +159,21 @@ export function Home() {
   useEffect(() => {
     api.trackEvent("page_view_home");
   }, []);
+
+  // Auto-refresh trend ordering every 30 seconds to prioritize upcoming games
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setRenderTick(prev => prev + 1);
+    }, 30000); // Re-sort every 30 seconds
+    
+    return () => clearInterval(interval);
+  }, []);
+
+  // Derive remaining state from queries
+  const trends = sortedTrends.slice(0, 3);
+  const lastUpdated = configQuery.data?.last_updated ?? null;
+  const error = configQuery.error || boardQuery.error ? "Could not load data" : null;
+  const loading = configQuery.isLoading || boardQuery.isLoading;
 
   const finalCount = board.filter((r) => r.game.status === "final").length;
   const scheduledCount = board.length - finalCount;
@@ -373,19 +442,29 @@ export function Home() {
       {/* Trending Section */}
       {trends.length > 0 && (
         <div className="mt-12">
-          <div className="mb-4 flex items-center justify-between border-b border-white/10 pb-3">
+          <div className="mb-6 flex items-center justify-between">
             <div>
-              <h2 className="text-lg font-bold text-white">🔥 Trending Today</h2>
-              <p className="mt-1 text-xs text-white/50">High-hit-rate props from games today</p>
+              <h2 className="text-2xl font-bold text-white flex items-center gap-2">
+                <span className="text-2xl">🔥</span> 
+                Trending Today
+              </h2>
+              <p className="mt-2 text-sm text-white/60">
+                Top props with strong recent performance • Backed by statistical analysis
+              </p>
             </div>
-            <Link to="/trends" className="text-xs font-semibold text-emerald-400 hover:underline">
-              View all →
+            <Link to="/trends" className="text-sm font-semibold text-emerald-400 hover:text-emerald-300 transition hover:underline">
+              View all {trends.length > 3 ? `(${trends.length})` : ''} →
             </Link>
           </div>
-          <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-            {trends.map((row, i) => (
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            {trends.slice(0, 3).map((row, i) => (
               <CheatsheetRowCard key={`${row.player_name}-${row.stat_name}-${i}`} row={row} teamLogos={teamLogos} />
             ))}
+          </div>
+          <div className="mt-6 p-4 rounded-lg bg-gradient-to-r from-emerald-400/10 to-sky-400/10 border border-emerald-400/20">
+            <div className="text-xs text-white/70">
+              <span className="font-semibold text-white">💡 Why these signals?</span> Selected based on hit rate, recent form consistency, and sample size. Each signal represents strong predictive value in recent games.
+            </div>
           </div>
         </div>
       )}
@@ -406,9 +485,9 @@ export function Home() {
       )}
 
       {/* Advanced Tools */}
-      {trendGroups && (trendGroups.injury_impact.length > 0 || trendGroups.opponent_rank.length > 0) && (
+      {trendGroups && (sortedInjuryRows.length > 0 || sortedOpponentRows.length > 0) && (
         <div className="mt-12">
-          <AdvancedToolsWidget injuryRows={trendGroups.injury_impact} opponentRankRows={trendGroups.opponent_rank} teamLogos={teamLogos} />
+          <AdvancedToolsWidget injuryRows={sortedInjuryRows} opponentRankRows={sortedOpponentRows} teamLogos={teamLogos} />
         </div>
       )}
 

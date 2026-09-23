@@ -84,6 +84,17 @@ class CheatsheetRowOut(BaseModel):
     without_player: str | None = None  # set only for the injury-impact category
     opponent_rank: int | None = None  # set only for the opponent-rank category (1 = best defense)
     opponent_team_count: int | None = None  # total teams, so the frontend can render "Nth of M"
+    
+    # Contextual signal data (Linemate-style badges)
+    split_hits: int | None = None  # Home/away split hits (if available from home_away_splits category)
+    split_games: int | None = None  # Home/away split games count
+    h2h_hits: int | None = None  # Head-to-head vs opponent hits (if available from versus_opponent category)
+    h2h_games: int | None = None  # Head-to-head games count
+    
+    # Game information for sorting by upcoming games
+    game_id: int | None = None  # Next game ID for this player's team
+    game_kickoff: str | None = None  # Next game kickoff time (ISO format)
+    is_home: bool | None = None  # True if next game is at home
 
 
 class TeamGeneralStats(BaseModel):

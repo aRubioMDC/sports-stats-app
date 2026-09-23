@@ -72,6 +72,17 @@ export interface CheatsheetRow {
   without_player?: string | null;
   opponent_rank?: number | null;
   opponent_team_count?: number | null;
+  
+  // Contextual signal data (Linemate-style badges)
+  split_hits?: number | null;
+  split_games?: number | null;
+  h2h_hits?: number | null;
+  h2h_games?: number | null;
+  
+  // Game information for sorting by upcoming games
+  game_id?: number | null;
+  game_kickoff?: string | null; // ISO datetime string
+  is_home?: boolean | null;
 }
 
 export interface TeamGeneralStats {
