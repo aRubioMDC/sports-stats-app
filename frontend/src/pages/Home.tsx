@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { api } from "../api";
-import type { BoardGame, CheatsheetRow, Parlay, TrendGroups } from "../api";
+import { useQueryClient } from "@tanstack/react-query";
+import { api, useBoard, useCheatsheet, useConfig, useParlays, useTeams, useTrendGroups } from "../api";
 import { CheatsheetRowCard } from "../components/CheatsheetRowCard";
 import { MatchRow } from "../components/MatchRow";
 import { CheatsheetGroups } from "../components/CheatsheetGroups";
@@ -48,56 +48,63 @@ function formatRelativeTime(iso: string | null): string {
 }
 
 export function Home() {
-  const [season, setSeason] = useState<number | null>(null);
-  const [week, setWeek] = useState<number | null>(null);
-  const [board, setBoard] = useState<BoardGame[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const queryClient = useQueryClient();
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("scheduled");
-  const [trends, setTrends] = useState<CheatsheetRow[]>([]);
-  const [trendGroups, setTrendGroups] = useState<TrendGroups | null>(null);
-  const [parlays, setParlays] = useState<Parlay[]>([]);
+  const [selectedWeek, setSelectedWeek] = useState<number | null>(null);
   const [selectedGameId, setSelectedGameId] = useState<number | null>(null);
   const [showAllGames, setShowAllGames] = useState(false);
-  const [lastUpdated, setLastUpdated] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [teamSearch, setTeamSearch] = useState<string>("");
 
+  // React Query hooks for automatic caching across navigation
+  const configQuery = useConfig();
+  const teamsQuery = useTeams();
+  
+  // Use selectedWeek if set, otherwise use current week from config
+  const season = configQuery.data?.current_season ?? null;
+  const week = selectedWeek ?? configQuery.data?.current_week ?? null;
+  
+  const boardQuery = useBoard(season, week);
+  // Always pass daysBack=3 for "Trending Today" (actually "last 3 days" to show recent games)
+  // Use lower min_games (1) for daily filtering since fewer games happen on any given day
+  const cheatsheetQuery = useCheatsheet(0.6, 1, season ?? undefined, week ?? undefined, 3);
+  const trendGroupsQuery = useTrendGroups(season ?? undefined, week ?? undefined, 3);
+  const parlaysQuery = useParlays(selectedGameId);
+
+  // Derived state from queries
+  const board = boardQuery.data ?? [];
+  const trends = (cheatsheetQuery.data ?? []).slice(0, 3);
+  const trendGroups = trendGroupsQuery.data ?? null;
+  const parlays = parlaysQuery.data ?? [];
+  const lastUpdated = configQuery.data?.last_updated ?? null;
+  const error = configQuery.error || boardQuery.error ? "Could not load data" : null;
+  const loading = configQuery.isLoading || boardQuery.isLoading;
+
+  // Build team logos mapping
+  const teamLogos = useMemo(() => {
+    if (!teamsQuery.data) return {};
+    const mapping: Record<string, { logoUrl: string; primaryColor: string }> = {};
+    teamsQuery.data.forEach((team) => {
+      mapping[team.abbreviation] = { logoUrl: team.logo_url, primaryColor: team.primary_color };
+      mapping[team.name] = { logoUrl: team.logo_url, primaryColor: team.primary_color };
+    });
+    return mapping;
+  }, [teamsQuery.data]);
+
+  // Auto-select first game when board loads
+  useEffect(() => {
+    if (board.length > 0 && !selectedGameId) {
+      const firstUpcoming = board.find((r) => r.game.status !== "final") ?? board[0];
+      if (firstUpcoming) {
+        setSelectedGameId(firstUpcoming.game.id);
+      }
+    }
+  }, [board, selectedGameId]);
+
+  // Track page view
   useEffect(() => {
     api.trackEvent("page_view_home");
-    api
-      .getConfig()
-      .then((c) => {
-        setSeason(c.current_season);
-        setWeek(c.current_week);
-        setLastUpdated(c.last_updated);
-      })
-      .catch(() => setError("Could not load current season."));
-    api.getCheatsheet(1.0, 3).then((rows) => setTrends(rows.slice(0, 3))).catch(() => undefined);
-    api.getTrendGroups().then(setTrendGroups).catch(() => undefined);
   }, []);
-
-  useEffect(() => {
-    if (season === null || week === null) return;
-    setLoading(true);
-    setError(null);
-    setShowAllGames(false);
-    api
-      .getBoard(season, week)
-      .then((rows) => {
-        setBoard(rows);
-        const firstUpcoming = rows.find((r) => r.game.status !== "final") ?? rows[0];
-        if (firstUpcoming) {
-          setSelectedGameId(firstUpcoming.game.id);
-          api.getParlays(firstUpcoming.game.id).then(setParlays).catch(() => undefined);
-        } else {
-          setSelectedGameId(null);
-          setParlays([]);
-        }
-      })
-      .catch(() => setError("Could not load games for this week."))
-      .finally(() => setLoading(false));
-  }, [season, week]);
 
   const finalCount = board.filter((r) => r.game.status === "final").length;
   const scheduledCount = board.length - finalCount;
@@ -129,20 +136,21 @@ export function Home() {
   const handleSelectParlayGame = (gameId: number) => {
     setSelectedGameId(gameId);
     api.trackEvent("parlays_switch_game", { gameId });
-    api.getParlays(gameId).then(setParlays).catch(() => undefined);
   };
 
-  const handleRefresh = () => {
+  const handleRefresh = async () => {
     if (season === null || week === null || refreshing) return;
     setRefreshing(true);
     api.trackEvent("refresh_scores_click");
-    api
-      .refreshScores()
-      .then((res) => setLastUpdated(res.last_updated))
-      .then(() => api.getBoard(season, week))
-      .then(setBoard)
-      .catch(() => setError("Could not refresh scores."))
-      .finally(() => setRefreshing(false));
+    try {
+      await api.refreshScores();
+      // Invalidate board cache to force refetch
+      await queryClient.invalidateQueries({ queryKey: ["board", season, week] });
+    } catch {
+      // Error handled by UI (will show in error state if needed)
+    } finally {
+      setRefreshing(false);
+    }
   };
 
   return (
@@ -190,7 +198,7 @@ export function Home() {
       <div className="mb-6 flex w-full items-center gap-2 rounded-xl border border-white/10 bg-[#12141a] p-1 sm:hidden">
         <button
           type="button"
-          onClick={() => setWeek(Math.max(1, (week ?? 1) - 1))}
+          onClick={() => setSelectedWeek(Math.max(1, (week ?? 1) - 1))}
           disabled={week === 1}
           aria-label="Previous week"
           className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-lg text-white/60 transition hover:bg-white/5 hover:text-white disabled:opacity-30"
@@ -199,7 +207,7 @@ export function Home() {
         </button>
         <Select
           value={week ?? ""}
-          onChange={(e) => setWeek(Number(e.target.value))}
+          onChange={(e) => setSelectedWeek(Number(e.target.value))}
           aria-label="Select week"
           wrapperClassName="min-w-0 flex-1"
           className="border-transparent bg-transparent text-center hover:border-transparent"
@@ -212,7 +220,7 @@ export function Home() {
         </Select>
         <button
           type="button"
-          onClick={() => setWeek(Math.min(22, (week ?? 1) + 1))}
+          onClick={() => setSelectedWeek(Math.min(22, (week ?? 1) + 1))}
           disabled={week === 22}
           aria-label="Next week"
           className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-lg text-white/60 transition hover:bg-white/5 hover:text-white disabled:opacity-30"
@@ -224,7 +232,7 @@ export function Home() {
       <div className="mb-6 hidden w-full items-center gap-2 rounded-xl border border-white/10 bg-[#12141a] p-1 sm:flex">
         <button
           type="button"
-          onClick={() => setWeek(Math.max(1, (week ?? 1) - 1))}
+          onClick={() => setSelectedWeek(Math.max(1, (week ?? 1) - 1))}
           disabled={week === 1}
           aria-label="Previous week"
           className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-lg text-white/60 transition hover:bg-white/5 hover:text-white disabled:opacity-30"
@@ -237,7 +245,7 @@ export function Home() {
             <button
               key={w}
               type="button"
-              onClick={() => setWeek(w)}
+              onClick={() => setSelectedWeek(w)}
               className={`flex-1 rounded-lg py-2 text-sm font-semibold transition ${
                 w === week
                   ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30"
@@ -249,7 +257,7 @@ export function Home() {
           ))}
         <button
           type="button"
-          onClick={() => setWeek(Math.min(22, (week ?? 1) + 1))}
+          onClick={() => setSelectedWeek(Math.min(22, (week ?? 1) + 1))}
           disabled={week === 22}
           aria-label="Next week"
           className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-lg text-white/60 transition hover:bg-white/5 hover:text-white disabled:opacity-30"
@@ -368,7 +376,7 @@ export function Home() {
           <div className="mb-4 flex items-center justify-between border-b border-white/10 pb-3">
             <div>
               <h2 className="text-lg font-bold text-white">🔥 Trending Today</h2>
-              <p className="mt-1 text-xs text-white/50">High-hit-rate props across all games</p>
+              <p className="mt-1 text-xs text-white/50">High-hit-rate props from games today</p>
             </div>
             <Link to="/trends" className="text-xs font-semibold text-emerald-400 hover:underline">
               View all →
@@ -376,7 +384,7 @@ export function Home() {
           </div>
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
             {trends.map((row, i) => (
-              <CheatsheetRowCard key={`${row.player_name}-${row.stat_name}-${i}`} row={row} />
+              <CheatsheetRowCard key={`${row.player_name}-${row.stat_name}-${i}`} row={row} teamLogos={teamLogos} />
             ))}
           </div>
         </div>
@@ -392,6 +400,7 @@ export function Home() {
             homeAwaySplits={trendGroups.home_away_splits}
             undersOnly={trendGroups.unders_only}
             teamForm={trendGroups.team_form}
+            teamLogos={teamLogos}
           />
         </div>
       )}
@@ -399,7 +408,7 @@ export function Home() {
       {/* Advanced Tools */}
       {trendGroups && (trendGroups.injury_impact.length > 0 || trendGroups.opponent_rank.length > 0) && (
         <div className="mt-12">
-          <AdvancedToolsWidget injuryRows={trendGroups.injury_impact} opponentRankRows={trendGroups.opponent_rank} />
+          <AdvancedToolsWidget injuryRows={trendGroups.injury_impact} opponentRankRows={trendGroups.opponent_rank} teamLogos={teamLogos} />
         </div>
       )}
 

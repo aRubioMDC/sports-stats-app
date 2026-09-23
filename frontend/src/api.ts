@@ -2,6 +2,8 @@ const API_BASE = "/api";
 // No sport switcher wired to real data yet — only NFL is registered on the backend.
 const DEFAULT_SPORT = "nfl";
 
+import { useQuery } from '@tanstack/react-query';
+
 export interface Sport {
   slug: string;
   display_name: string;
@@ -136,16 +138,100 @@ export const api = {
   getGames: (season: number, week: number) =>
     getJson<Game[]>(`/${DEFAULT_SPORT}/games?season=${season}&week=${week}`),
   getMatchup: (gameId: number) => getJson<MatchupContext>(`/${DEFAULT_SPORT}/games/${gameId}/matchup`),
-  getCheatsheet: (minHitRate = 1.0, minGames = 3) =>
-    getJson<CheatsheetRow[]>(
-      `/${DEFAULT_SPORT}/trends/cheatsheet?min_hit_rate=${minHitRate}&min_games=${minGames}`,
-    ),
+  getCheatsheet: (minHitRate = 1.0, minGames = 3, season?: number, week?: number, daysBack?: number) => {
+    const params = new URLSearchParams({
+      min_hit_rate: minHitRate.toString(),
+      min_games: minGames.toString(),
+    });
+    if (season !== undefined) params.append('season', season.toString());
+    if (week !== undefined) params.append('week', week.toString());
+    if (daysBack !== undefined) params.append('days_back', daysBack.toString());
+    return getJson<CheatsheetRow[]>(
+      `/${DEFAULT_SPORT}/trends/cheatsheet?${params.toString()}`,
+    );
+  },
   getBoard: (season: number, week: number) =>
     getJson<BoardGame[]>(`/${DEFAULT_SPORT}/board?season=${season}&week=${week}`),
-  getTrendGroups: () => getJson<TrendGroups>(`/${DEFAULT_SPORT}/trends/groups`),
+  getTrendGroups: (season?: number, week?: number, daysBack?: number) => {
+    const params = new URLSearchParams();
+    if (season !== undefined) params.append('season', season.toString());
+    if (week !== undefined) params.append('week', week.toString());
+    if (daysBack !== undefined) params.append('days_back', daysBack.toString());
+    const query = params.toString() ? `?${params.toString()}` : '';
+    return getJson<TrendGroups>(`/${DEFAULT_SPORT}/trends/groups${query}`);
+  },
   getTeams: () => getJson<Team[]>(`/${DEFAULT_SPORT}/teams`),
   getParlays: (gameId: number) => getJson<Parlay[]>(`/${DEFAULT_SPORT}/games/${gameId}/parlays`),
   getSamplePrices: () => getJson<number[]>(`/${DEFAULT_SPORT}/odds/sample`),
   refreshScores: () => postJson<{ last_updated: string }>(`/${DEFAULT_SPORT}/refresh`),
   trackEvent,
 };
+
+// ============= React Query Hooks (for caching across navigation) =============
+
+export function useConfig() {
+  return useQuery({
+    queryKey: ['config'],
+    queryFn: () => api.getConfig(),
+  });
+}
+
+export function useTeams() {
+  return useQuery({
+    queryKey: ['teams'],
+    queryFn: () => api.getTeams(),
+  });
+}
+
+export function useGames(season: number | null, week: number | null) {
+  return useQuery({
+    queryKey: ['games', season, week],
+    queryFn: () => (season !== null && week !== null ? api.getGames(season, week) : Promise.resolve([])),
+    enabled: season !== null && week !== null,
+  });
+}
+
+export function useBoard(season: number | null, week: number | null) {
+  return useQuery({
+    queryKey: ['board', season, week],
+    queryFn: () => (season !== null && week !== null ? api.getBoard(season, week) : Promise.resolve([])),
+    enabled: season !== null && week !== null,
+  });
+}
+
+export function useCheatsheet(minHitRate = 1.0, minGames = 3, season?: number, week?: number, daysBack?: number) {
+  return useQuery({
+    queryKey: ['cheatsheet', minHitRate, minGames, season, week, daysBack],
+    queryFn: () => api.getCheatsheet(minHitRate, minGames, season, week, daysBack),
+  });
+}
+
+export function useTrendGroups(season?: number, week?: number, daysBack?: number) {
+  return useQuery({
+    queryKey: ['trendGroups', season, week, daysBack],
+    queryFn: () => api.getTrendGroups(season, week, daysBack),
+  });
+}
+
+export function useMatchup(gameId: number | null) {
+  return useQuery({
+    queryKey: ['matchup', gameId],
+    queryFn: () => (gameId !== null ? api.getMatchup(gameId) : Promise.reject('No gameId')),
+    enabled: gameId !== null,
+  });
+}
+
+export function useParlays(gameId: number | null) {
+  return useQuery({
+    queryKey: ['parlays', gameId],
+    queryFn: () => (gameId !== null ? api.getParlays(gameId) : Promise.resolve([])),
+    enabled: gameId !== null,
+  });
+}
+
+export function useSamplePrices() {
+  return useQuery({
+    queryKey: ['samplePrices'],
+    queryFn: () => api.getSamplePrices(),
+  });
+}

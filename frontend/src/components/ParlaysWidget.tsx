@@ -40,10 +40,22 @@ export function ParlaysWidget({
         </Select>
       </div>
       <div className="rounded-xl border border-white/10 bg-[#12141a] p-4">
-        <div className="mb-3 flex items-center justify-between">
-          <span className="text-sm font-semibold text-white/70">
-            {game.away_team.abbreviation} @ {game.home_team.abbreviation}
-          </span>
+        <div className="mb-3 flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2 min-w-0">
+            {game.away_team.logo_url ? (
+              <img src={game.away_team.logo_url} alt={game.away_team.abbreviation} className="h-6 w-6 shrink-0 object-contain" />
+            ) : (
+              <div className="h-6 w-6 shrink-0 rounded-full" style={{ backgroundColor: game.away_team.primary_color }} />
+            )}
+            <span className="text-sm font-semibold text-white/70 truncate">{game.away_team.abbreviation}</span>
+            <span className="text-white/40 shrink-0">@</span>
+            <span className="text-sm font-semibold text-white/70 truncate">{game.home_team.abbreviation}</span>
+            {game.home_team.logo_url ? (
+              <img src={game.home_team.logo_url} alt={game.home_team.abbreviation} className="h-6 w-6 shrink-0 object-contain" />
+            ) : (
+              <div className="h-6 w-6 shrink-0 rounded-full" style={{ backgroundColor: game.home_team.primary_color }} />
+            )}
+          </div>
           {parlays.length > 1 && (
             <div className="flex items-center gap-2 text-xs text-white/50">
               <button

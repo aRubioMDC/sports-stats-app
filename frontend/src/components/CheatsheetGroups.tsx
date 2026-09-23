@@ -8,7 +8,12 @@ interface Category {
   rows: CheatsheetRow[];
 }
 
-function GroupColumn({ icon, title, rows }: Category) {
+function GroupColumn({ 
+  icon, 
+  title, 
+  rows,
+  teamLogos 
+}: Category & { teamLogos?: Record<string, { logoUrl: string; primaryColor: string }> }) {
   return (
     <div className="rounded-xl border border-white/10 bg-[#12141a] p-4">
       <div className="mb-3 flex items-center gap-2 text-sm font-bold text-white">
@@ -17,17 +22,27 @@ function GroupColumn({ icon, title, rows }: Category) {
       </div>
       <div className="flex flex-col gap-2">
         {rows.length === 0 && <span className="text-xs text-white/30">Not enough data yet.</span>}
-        {rows.map((row, i) => (
-          <div key={i} className="flex items-center justify-between text-xs">
-            <div>
-              <span className="font-semibold text-white">{row.player_name}</span>
-              <span className="ml-1 text-white/40">{formatTrendLine(row.stat_name, row.threshold, row.direction)}</span>
+        {rows.map((row, i) => {
+          const teamLogo = teamLogos?.[row.team];
+          return (
+            <div key={i} className="flex items-center justify-between gap-2 text-xs">
+              <div className="flex items-center gap-1.5 min-w-0">
+                {teamLogo?.logoUrl ? (
+                  <img src={teamLogo.logoUrl} alt={row.team} className="h-5 w-5 shrink-0 object-contain" />
+                ) : (
+                  <div className="h-5 w-5 shrink-0 rounded-full" style={{ backgroundColor: teamLogo?.primaryColor || "#ffffff" }} title={row.team} />
+                )}
+                <div className="min-w-0">
+                  <div className="font-semibold text-white truncate">{row.player_name}</div>
+                  <div className="text-white/40">{formatTrendLine(row.stat_name, row.threshold, row.direction)}</div>
+                </div>
+              </div>
+              <span className="font-semibold text-emerald-400 shrink-0">
+                {row.hits}/{row.games}
+              </span>
             </div>
-            <span className="font-semibold text-emerald-400">
-              {row.hits}/{row.games}
-            </span>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );
@@ -41,6 +56,7 @@ export function CheatsheetGroups({
   homeAwaySplits,
   undersOnly,
   teamForm,
+  teamLogos,
 }: {
   recentForm: CheatsheetRow[];
   versusOpponent: CheatsheetRow[];
@@ -48,6 +64,7 @@ export function CheatsheetGroups({
   homeAwaySplits: CheatsheetRow[];
   undersOnly: CheatsheetRow[];
   teamForm: CheatsheetRow[];
+  teamLogos?: Record<string, { logoUrl: string; primaryColor: string }>;
 }) {
   const categories: Category[] = [
     { icon: "⚡", title: "100% Recent Form", rows: recentForm },
@@ -104,7 +121,7 @@ export function CheatsheetGroups({
         className="animate-carousel-slide grid grid-cols-1 gap-3 md:grid-cols-3"
       >
         {visible.map((cat) => (
-          <GroupColumn key={cat.title} icon={cat.icon} title={cat.title} rows={cat.rows} />
+          <GroupColumn key={cat.title} icon={cat.icon} title={cat.title} rows={cat.rows} teamLogos={teamLogos} />
         ))}
       </div>
     </div>

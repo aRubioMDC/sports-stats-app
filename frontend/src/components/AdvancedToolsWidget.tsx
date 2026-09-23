@@ -35,9 +35,11 @@ function trimToGrid(rows: CheatsheetRow[]): CheatsheetRow[] {
 export function AdvancedToolsWidget({
   injuryRows,
   opponentRankRows,
+  teamLogos,
 }: {
   injuryRows: CheatsheetRow[];
   opponentRankRows: CheatsheetRow[];
+  teamLogos?: Record<string, { logoUrl: string; primaryColor: string }>;
 }) {
   const injuryCards = trimToGrid(injuryRows);
   const opponentRankCards = trimToGrid(opponentRankRows);
@@ -65,17 +67,26 @@ export function AdvancedToolsWidget({
           : "Players whose upcoming opponent has one of the league's worst defenses against that stat."}
       </p>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-        {rows.map((row, i) => (
-          <div key={i} className="rounded-xl border border-white/10 bg-[#12141a] p-4">
-            <div className="mb-2 flex items-center justify-between">
-              <div>
-                <div className="font-semibold text-white">{row.player_name}</div>
-                <div className="text-xs text-white/40">{row.team}</div>
+        {rows.map((row, i) => {
+          const teamLogo = teamLogos?.[row.team];
+          return (
+            <div key={i} className="rounded-xl border border-white/10 bg-[#12141a] p-4">
+              <div className="mb-2 flex items-start justify-between gap-2">
+                <div className="flex items-start gap-2 min-w-0">
+                  {teamLogo?.logoUrl ? (
+                    <img src={teamLogo.logoUrl} alt={row.team} className="h-6 w-6 shrink-0 object-contain mt-0.5" />
+                  ) : (
+                    <div className="h-6 w-6 shrink-0 rounded-full mt-0.5" style={{ backgroundColor: teamLogo?.primaryColor || "#ffffff" }} />
+                  )}
+                  <div className="min-w-0">
+                    <div className="font-semibold text-white truncate">{row.player_name}</div>
+                    <div className="text-xs text-white/40">{row.team}</div>
+                  </div>
+                </div>
+                <span className="text-sm font-semibold text-white/80 shrink-0">
+                  {formatTrendLine(row.stat_name, row.threshold, row.direction)}
+                </span>
               </div>
-              <span className="text-sm font-semibold text-white/80">
-                {formatTrendLine(row.stat_name, row.threshold, row.direction)}
-              </span>
-            </div>
             {mode === "injuries" ? (
               <div className="flex items-center gap-1.5 text-xs">
                 <span>🩹</span>
@@ -94,7 +105,8 @@ export function AdvancedToolsWidget({
               </div>
             )}
           </div>
-        ))}
+        );
+        })}
       </div>
     </div>
   );

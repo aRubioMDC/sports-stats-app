@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { api } from "../api";
-import type { TrendGroups } from "../api";
+import { api, useConfig, useSamplePrices, useTeams, useTrendGroups } from "../api";
 
 const tabs = [
   { key: "player", label: "Player" },
@@ -136,35 +135,39 @@ function generateDetailData(card: TrendCard): DetailData {
 
 export function Trends() {
   const [tab, setTab] = useState<TrendTab>("player");
-  const [trendGroups, setTrendGroups] = useState<TrendGroups | null>(null);
-  const [samplePrices, setSamplePrices] = useState<number[]>([]);
-  const [loading, setLoading] = useState(true);
   const [minHitRate, setMinHitRate] = useState(0.60);
   const [selectedCard, setSelectedCard] = useState<TrendCard | null>(null);
-  const [teamLogos, setTeamLogos] = useState<Record<string, { logoUrl: string; primaryColor: string }>>({});
+  
+  // React Query hooks for automatic caching
+  const configQuery = useConfig();
+  // Always pass daysBack=3 for "Trending Today" (last 3 days to show recent games)
+  const trendGroupsQuery = useTrendGroups(configQuery.data?.current_season, configQuery.data?.current_week, 3);
+  const samplePricesQuery = useSamplePrices();
+  const teamsQuery = useTeams();
 
+  // Derived state from queries
+  const trendGroups = trendGroupsQuery.data ?? null;
+  const samplePrices = samplePricesQuery.data ?? [];
+  const loading = trendGroupsQuery.isLoading || samplePricesQuery.isLoading || teamsQuery.isLoading;
+
+  // Build team logos mapping
+  const teamLogos = useMemo(() => {
+    if (!teamsQuery.data) return {};
+    return teamsQuery.data.reduce(
+      (acc, team) => {
+        acc[team.abbreviation] = {
+          logoUrl: team.logo_url,
+          primaryColor: team.primary_color,
+        };
+        return acc;
+      },
+      {} as Record<string, { logoUrl: string; primaryColor: string }>
+    );
+  }, [teamsQuery.data]);
+
+  // Track page view
   useEffect(() => {
     api.trackEvent("page_view_trends");
-
-    Promise.all([api.getTrendGroups(), api.getSamplePrices(), api.getTeams()])
-      .then(([groups, prices, teams]) => {
-        setTrendGroups(groups);
-        setSamplePrices(prices);
-        // Create mapping of team abbreviation to logo and color
-        const logos = teams.reduce(
-          (acc, team) => {
-            acc[team.abbreviation] = {
-              logoUrl: team.logo_url,
-              primaryColor: team.primary_color,
-            };
-            return acc;
-          },
-          {} as Record<string, { logoUrl: string; primaryColor: string }>
-        );
-        setTeamLogos(logos);
-      })
-      .catch(() => undefined)
-      .finally(() => setLoading(false));
   }, []);
 
   const trendCards = useMemo<Record<TrendTab, TrendCard[]>>(() => {
@@ -275,7 +278,7 @@ export function Trends() {
           {/* Header */}
           <div className="mb-6">
             <div className="mb-4 flex items-center justify-between">
-              <h1 className="text-4xl font-black tracking-tight text-white">Trends</h1>
+              <h1 className="text-4xl font-black tracking-tight text-white">Trends Today</h1>
               <div className="flex gap-2">
                 <button
                   type="button"
