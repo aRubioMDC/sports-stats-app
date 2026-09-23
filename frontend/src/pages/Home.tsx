@@ -65,9 +65,9 @@ export function Home() {
   const week = selectedWeek ?? configQuery.data?.current_week ?? null;
   
   const boardQuery = useBoard(season, week);
-  // Use precomputed high-confidence trend signals (no daily filtering)
-  // Lower min_games (1) to get more signals with acceptable hit rates
-  const cheatsheetQuery = useCheatsheet(0.6, 1, season ?? undefined, week ?? undefined);
+  // Trending Today: Use precomputed high-confidence signals (not daily filtering)
+  // Lower thresholds to get more results from available signals
+  const cheatsheetQuery = useCheatsheet(0.5, 0, season ?? undefined, week ?? undefined);
   const trendGroupsQuery = useTrendGroups(season ?? undefined, week ?? undefined);
   const parlaysQuery = useParlays(selectedGameId);
 

@@ -69,7 +69,7 @@ def get_cheatsheet(
     week: int | None = Query(None),
     days_back: int | None = Query(None),
     min_hit_rate: float = Query(1.0, ge=0, le=1),
-    min_games: int = Query(3, ge=1),
+    min_games: int = Query(3, ge=0),
     db: Session = Depends(get_db),
 ):
     """
