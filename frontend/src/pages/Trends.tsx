@@ -35,36 +35,36 @@ type TrendCard = {
 // Mock sportsbooks for variety
 const SPORTSBOOKS = ["FanDuel", "DraftKings", "BetMGM", "Caesars", "Betano", "PointsBet"];
 
-// Team logos (NFL official SVG URLs)
-const TEAM_LOGOS: Record<string, string> = {
-  DAL: "https://static.nfl.com/f_auto,w_100/teams/logos/dallas-cowboys.svg",
-  NYG: "https://static.nfl.com/f_auto,w_100/teams/logos/new-york-giants.svg",
-  PHI: "https://static.nfl.com/f_auto,w_100/teams/logos/philadelphia-eagles.svg",
-  WAS: "https://static.nfl.com/f_auto,w_100/teams/logos/washington-commanders.svg",
-  DEN: "https://static.nfl.com/f_auto,w_100/teams/logos/denver-broncos.svg",
-  KC: "https://static.nfl.com/f_auto,w_100/teams/logos/kansas-city-chiefs.svg",
-  LAC: "https://static.nfl.com/f_auto,w_100/teams/logos/los-angeles-chargers.svg",
-  LV: "https://static.nfl.com/f_auto,w_100/teams/logos/las-vegas-raiders.svg",
-  BAL: "https://static.nfl.com/f_auto,w_100/teams/logos/baltimore-ravens.svg",
-  BUF: "https://static.nfl.com/f_auto,w_100/teams/logos/buffalo-bills.svg",
-  MIA: "https://static.nfl.com/f_auto,w_100/teams/logos/miami-dolphins.svg",
-  NE: "https://static.nfl.com/f_auto,w_100/teams/logos/new-england-patriots.svg",
-  HOU: "https://static.nfl.com/f_auto,w_100/teams/logos/houston-texans.svg",
-  IND: "https://static.nfl.com/f_auto,w_100/teams/logos/indianapolis-colts.svg",
-  JAX: "https://static.nfl.com/f_auto,w_100/teams/logos/jacksonville-jaguars.svg",
-  TEN: "https://static.nfl.com/f_auto,w_100/teams/logos/tennessee-titans.svg",
-  CHI: "https://static.nfl.com/f_auto,w_100/teams/logos/chicago-bears.svg",
-  DET: "https://static.nfl.com/f_auto,w_100/teams/logos/detroit-lions.svg",
-  GB: "https://static.nfl.com/f_auto,w_100/teams/logos/green-bay-packers.svg",
-  MIN: "https://static.nfl.com/f_auto,w_100/teams/logos/minnesota-vikings.svg",
-  ATL: "https://static.nfl.com/f_auto,w_100/teams/logos/atlanta-falcons.svg",
-  CAR: "https://static.nfl.com/f_auto,w_100/teams/logos/carolina-panthers.svg",
-  NO: "https://static.nfl.com/f_auto,w_100/teams/logos/new-orleans-saints.svg",
-  TB: "https://static.nfl.com/f_auto,w_100/teams/logos/tampa-bay-buccaneers.svg",
-  ARI: "https://static.nfl.com/f_auto,w_100/teams/logos/arizona-cardinals.svg",
-  LAR: "https://static.nfl.com/f_auto,w_100/teams/logos/los-angeles-rams.svg",
-  SF: "https://static.nfl.com/f_auto,w_100/teams/logos/san-francisco-49ers.svg",
-  SEA: "https://static.nfl.com/f_auto,w_100/teams/logos/seattle-seahawks.svg",
+// Team emojis for reliable display
+const TEAM_EMOJIS: Record<string, string> = {
+  DAL: "🤠",
+  NYG: "🗽",
+  PHI: "🦅",
+  WAS: "🧢",
+  DEN: "🐴",
+  KC: "👑",
+  LAC: "⚡",
+  LV: "💣",
+  BAL: "🐦",
+  BUF: "🦬",
+  MIA: "🐬",
+  NE: "🐭",
+  HOU: "🔫",
+  IND: "🐎",
+  JAX: "🐆",
+  TEN: "🎸",
+  CHI: "🐻",
+  DET: "🦁",
+  GB: "🧀",
+  MIN: "🟣",
+  ATL: "🪘",
+  CAR: "🐯",
+  NO: "⚜️",
+  TB: "🏴‍☠️",
+  ARI: "🌵",
+  LAR: "🐏",
+  SF: "🌉",
+  SEA: "🌊",
 };
 
 function calculateProjectedROI(hitRate: number, price: number): number {
@@ -427,18 +427,8 @@ function TrendCardComponent({
       {/* Header */}
       <div className="mb-3 flex items-start justify-between gap-3">
         <div className="flex items-start gap-2">
-          <div className="relative w-8 h-8 bg-white/5 rounded flex items-center justify-center flex-shrink-0 border border-white/10">
-            <img 
-              src={TEAM_LOGOS[card.team]} 
-              alt={card.team} 
-              className="w-7 h-7 object-contain"
-              onError={(e) => {
-                const img = e.target as HTMLImageElement;
-                img.style.display = "none";
-                img.nextElementSibling?.classList.remove("hidden");
-              }}
-            />
-            <span className="hidden text-lg font-bold text-white/60">{card.team}</span>
+          <div className="text-2xl flex-shrink-0">
+            {TEAM_EMOJIS[card.team] || "🏈"}
           </div>
           <div>
             <div className="flex items-center gap-2">
@@ -523,18 +513,8 @@ function TrendDetailModal({ card, onClose }: TrendDetailModalProps) {
         <div className="mb-6 flex items-start justify-between gap-4">
           <div>
             <div className="flex items-center gap-3 mb-2">
-              <div className="relative w-12 h-12 bg-white/5 rounded flex items-center justify-center flex-shrink-0 border border-white/10">
-                <img 
-                  src={TEAM_LOGOS[card.team]} 
-                  alt={card.team} 
-                  className="w-11 h-11 object-contain"
-                  onError={(e) => {
-                    const img = e.target as HTMLImageElement;
-                    img.style.display = "none";
-                    img.nextElementSibling?.classList.remove("hidden");
-                  }}
-                />
-                <span className="hidden text-2xl font-bold text-white/60">{card.team}</span>
+              <div className="text-4xl">
+                {TEAM_EMOJIS[card.team] || "🏈"}
               </div>
               <div>
                 <h1 className="text-3xl font-black text-white">{card.playerName}</h1>
@@ -639,12 +619,8 @@ function TrendDetailModal({ card, onClose }: TrendDetailModalProps) {
                 {detailData.gamelog.map((game, idx) => (
                   <tr key={idx} className="border-b border-white/5 hover:bg-white/3">
                     <td className="px-3 py-2 text-white">{game.date}</td>
-                    <td className="px-3 py-2 text-white">
-                      <img 
-                        src={TEAM_LOGOS[game.opponent] || "🏈"} 
-                        alt={game.opponent}
-                        className="w-5 h-5 object-contain"
-                      />
+                    <td className="px-3 py-2 text-center text-lg">
+                      {TEAM_EMOJIS[game.opponent] || "🏈"}
                     </td>
                     <td className="px-3 py-2">
                       <span
