@@ -65,10 +65,10 @@ export function Home() {
   const week = selectedWeek ?? configQuery.data?.current_week ?? null;
   
   const boardQuery = useBoard(season, week);
-  // Always pass daysBack=3 for "Trending Today" (actually "last 3 days" to show recent games)
-  // Use lower min_games (1) for daily filtering since fewer games happen on any given day
-  const cheatsheetQuery = useCheatsheet(0.6, 1, season ?? undefined, week ?? undefined, 3);
-  const trendGroupsQuery = useTrendGroups(season ?? undefined, week ?? undefined, 3);
+  // Use precomputed high-confidence trend signals (no daily filtering)
+  // Lower min_games (1) to get more signals with acceptable hit rates
+  const cheatsheetQuery = useCheatsheet(0.6, 1, season ?? undefined, week ?? undefined);
+  const trendGroupsQuery = useTrendGroups(season ?? undefined, week ?? undefined);
   const parlaysQuery = useParlays(selectedGameId);
 
   // Derived state from queries
