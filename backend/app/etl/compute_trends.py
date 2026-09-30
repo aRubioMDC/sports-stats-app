@@ -59,6 +59,34 @@ def _fair_threshold(values: list[float], percentile: float) -> float | None:
     return math.floor(pivot) + 0.5
 
 
+# Below this many total games, there isn't enough history to hold out a
+# meaningful test slice, so the stat is skipped entirely (an honest "no
+# signal" beats fabricating one from an unreliable split).
+MIN_GAMES_FOR_WALK_FORWARD = 10
+
+
+def _walk_forward_threshold(
+    values: list[float], percentile: float
+) -> tuple[float, list[float]] | None:
+    """
+    Sets the threshold using only the OLDER portion of a player's game log,
+    then reports hits/misses only against the held-out, more-recent games —
+    so the displayed hit rate reflects out-of-sample predictive value instead
+    of being fit and graded on the exact same games (curve-fitting bias).
+
+    `values` must be ordered most-recent-first (see compute_trends' query).
+    """
+    if len(values) < MIN_GAMES_FOR_WALK_FORWARD:
+        return None
+    holdout = max(3, round(len(values) * 0.3))
+    test_values = values[:holdout]  # most recent games — graded on these only
+    train_values = values[holdout:]  # older games — used only to set the line
+    threshold = _fair_threshold(train_values, percentile)
+    if threshold is None:
+        return None
+    return threshold, test_values
+
+
 def compute_trends(current_season: int) -> None:
     db = SessionLocal()
     try:
@@ -100,15 +128,18 @@ def compute_trends(current_season: int) -> None:
                 values = [getattr(g, stat_name) for g in recent_form_games]
                 seen_thresholds: set[float] = set()
                 for percentile in LINE_PERCENTILES.values():
-                    threshold = _fair_threshold(values, percentile)
-                    if threshold is None or threshold in seen_thresholds:
+                    split = _walk_forward_threshold(values, percentile)
+                    if split is None:
+                        continue
+                    threshold, test_values = split
+                    if threshold in seen_thresholds:
                         continue
                     seen_thresholds.add(threshold)
                     for direction in ("over", "under"):
                         if direction == "over":
-                            hits = sum(1 for v in values if v > threshold)
+                            hits = sum(1 for v in test_values if v > threshold)
                         else:
-                            hits = sum(1 for v in values if v < threshold)
+                            hits = sum(1 for v in test_values if v < threshold)
                         db.add(
                             PlayerTrendSignal(
                                 sport="nfl",
@@ -118,7 +149,7 @@ def compute_trends(current_season: int) -> None:
                                 direction=direction,
                                 window_mode=window.window_mode,
                                 recent_form_hits=hits,
-                                recent_form_games=len(values),
+                                recent_form_games=len(test_values),
                             )
                         )
 
