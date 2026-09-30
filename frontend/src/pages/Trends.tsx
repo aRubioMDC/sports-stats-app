@@ -56,6 +56,14 @@ function sortRows(rows: CheatsheetRow[], key: SortKey): CheatsheetRow[] {
   return [...rows].sort((a, b) => sortValue(b, key) - sortValue(a, key));
 }
 
+// A range input's fill must be relative to its own min-max span, not the raw
+// value — a slider with min=60 sitting at value=60 is at the LEFT edge (0%
+// of the track), not 60% of it.
+function sliderFillPct(value: number, min: number, max: number): number {
+  if (max <= min) return 0;
+  return Math.round(((value - min) / (max - min)) * 100);
+}
+
 /** Stable identity for a signal so the same real pick isn't double-counted when it
  * appears in more than one TrendGroups category (the backend buckets are not
  * mutually exclusive for alternate_lines/unders_only/team_form). */
@@ -414,7 +422,10 @@ export function Trends() {
                   value={Math.round(minHitRate * 100)}
                   onChange={(e) => setMinHitRate(parseInt(e.target.value) / 100)}
                   style={{
-                    background: `linear-gradient(to right, #10b981 0%, #10b981 ${Math.round(minHitRate * 100)}%, #1f2937 ${Math.round(minHitRate * 100)}%, #1f2937 100%)`,
+                    // Fill % must be relative to the slider's actual min-max span
+                    // (60-100), not the raw value — otherwise the thumb sits at
+                    // the left edge while the track still paints 60% green.
+                    background: `linear-gradient(to right, #10b981 0%, #10b981 ${sliderFillPct(minHitRate * 100, MIN_HIT_RATE_FLOOR * 100, 100)}%, #1f2937 ${sliderFillPct(minHitRate * 100, MIN_HIT_RATE_FLOOR * 100, 100)}%, #1f2937 100%)`,
                   }}
                   className="w-full cursor-pointer"
                 />
