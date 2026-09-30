@@ -53,11 +53,63 @@ export interface HeadToHeadResult {
   away_score: number;
 }
 
+export interface OddsSide {
+  best_price: number;
+  best_bookmaker: string;
+  fair_prob: number | null;
+}
+
+export interface MoneylineMarket {
+  home: OddsSide | null;
+  away: OddsSide | null;
+}
+
+export interface SpreadMarket {
+  point: number | null;
+  home: OddsSide | null;
+  away: OddsSide | null;
+}
+
+export interface TotalMarket {
+  point: number | null;
+  over: OddsSide | null;
+  under: OddsSide | null;
+}
+
+export interface StandingsRow {
+  team: string;
+  logo_url: string;
+  primary_color: string;
+  wins: number;
+  losses: number;
+  ties: number;
+  pct: number;
+  is_in_game: boolean;
+}
+
+export interface RecentGame {
+  season: number;
+  week: number;
+  opponent: string;
+  opponent_logo_url: string;
+  is_home: boolean;
+  result: "W" | "L" | "T";
+  team_score: number;
+  opponent_score: number;
+}
+
 export interface MatchupContext {
   game: Game;
   window_mode: "current" | "blended";
   stat_rows: StatRow[];
   head_to_head: HeadToHeadResult[];
+  moneyline: MoneylineMarket | null;
+  spread: SpreadMarket | null;
+  total: TotalMarket | null;
+  division: string | null;
+  standings: StandingsRow[];
+  home_recent_games: RecentGame[];
+  away_recent_games: RecentGame[];
 }
 
 export interface CheatsheetRow {

@@ -47,11 +47,66 @@ class HeadToHeadResult(BaseModel):
     away_score: int
 
 
+class OddsSideOut(BaseModel):
+    """One side of a real two-way market — best (most favorable) price across
+    the books we track, plus the de-vigged consensus probability across them."""
+
+    best_price: float
+    best_bookmaker: str
+    fair_prob: float | None = None
+
+
+class MoneylineMarketOut(BaseModel):
+    home: OddsSideOut | None = None
+    away: OddsSideOut | None = None
+
+
+class SpreadMarketOut(BaseModel):
+    point: float | None = None  # consensus home spread point, e.g. -3.5
+    home: OddsSideOut | None = None
+    away: OddsSideOut | None = None
+
+
+class TotalMarketOut(BaseModel):
+    point: float | None = None
+    over: OddsSideOut | None = None
+    under: OddsSideOut | None = None
+
+
+class StandingsRowOut(BaseModel):
+    team: str
+    logo_url: str
+    primary_color: str
+    wins: int
+    losses: int
+    ties: int
+    pct: float
+    is_in_game: bool  # highlights the two teams playing in this game
+
+
+class RecentGameOut(BaseModel):
+    season: int
+    week: int
+    opponent: str
+    opponent_logo_url: str
+    is_home: bool
+    result: str  # W | L | T
+    team_score: int
+    opponent_score: int
+
+
 class MatchupContextOut(BaseModel):
     game: GameOut
     window_mode: str
     stat_rows: list[StatRow]
     head_to_head: list[HeadToHeadResult]
+    moneyline: MoneylineMarketOut | None = None
+    spread: SpreadMarketOut | None = None
+    total: TotalMarketOut | None = None
+    division: str | None = None  # real Team.division, e.g. "AFC North"
+    standings: list[StandingsRowOut] = []
+    home_recent_games: list[RecentGameOut] = []
+    away_recent_games: list[RecentGameOut] = []
 
 
 class TrendSignalOut(BaseModel):
