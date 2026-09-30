@@ -29,43 +29,65 @@ def upsert_teams(db: Session) -> dict[str, int]:
     return abbrev_to_id
 
 
+def _upsert_games_from_schedule(db: Session, schedule, team_ids: dict[str, int]) -> None:
+    for _, row in schedule.iterrows():
+        home_abbr, away_abbr = row["home_team"], row["away_team"]
+        if home_abbr not in team_ids or away_abbr not in team_ids:
+            continue
+        game = (
+            db.query(Game)
+            .filter(Game.nflverse_game_id == row["game_id"])
+            .one_or_none()
+        )
+        if game is None:
+            game = Game(sport="nfl", nflverse_game_id=row["game_id"])
+            db.add(game)
+        game.season = int(row["season"])
+        game.week = int(row["week"])
+        game.game_type = row.get("game_type", "REG")
+        gameday = row.get("gameday")
+        gametime = row.get("gametime")
+        if gameday and gametime:
+            game.kickoff = datetime.strptime(f"{gameday} {gametime}", "%Y-%m-%d %H:%M")
+        elif gameday:
+            game.kickoff = datetime.strptime(gameday, "%Y-%m-%d")
+        else:
+            game.kickoff = None
+        game.home_team_id = team_ids[home_abbr]
+        game.away_team_id = team_ids[away_abbr]
+        home_score, away_score = row.get("home_score"), row.get("away_score")
+        game.home_score = int(home_score) if home_score == home_score else None  # NaN check
+        game.away_score = int(away_score) if away_score == away_score else None
+        game.status = "final" if game.home_score is not None else "scheduled"
+
+
 def ingest_schedules(season: int) -> None:
     db = SessionLocal()
     try:
         team_ids = upsert_teams(db)
         schedule = nfl.load_schedules([season]).to_pandas()
-        for _, row in schedule.iterrows():
-            home_abbr, away_abbr = row["home_team"], row["away_team"]
-            if home_abbr not in team_ids or away_abbr not in team_ids:
-                continue
-            game = (
-                db.query(Game)
-                .filter(Game.nflverse_game_id == row["game_id"])
-                .one_or_none()
-            )
-            if game is None:
-                game = Game(sport="nfl", nflverse_game_id=row["game_id"])
-                db.add(game)
-            game.season = int(row["season"])
-            game.week = int(row["week"])
-            game.game_type = row.get("game_type", "REG")
-            gameday = row.get("gameday")
-            gametime = row.get("gametime")
-            if gameday and gametime:
-                game.kickoff = datetime.strptime(f"{gameday} {gametime}", "%Y-%m-%d %H:%M")
-            elif gameday:
-                game.kickoff = datetime.strptime(gameday, "%Y-%m-%d")
-            else:
-                game.kickoff = None
-            game.home_team_id = team_ids[home_abbr]
-            game.away_team_id = team_ids[away_abbr]
-            home_score, away_score = row.get("home_score"), row.get("away_score")
-            game.home_score = int(home_score) if home_score == home_score else None  # NaN check
-            game.away_score = int(away_score) if away_score == away_score else None
-            game.status = "final" if game.home_score is not None else "scheduled"
+        _upsert_games_from_schedule(db, schedule, team_ids)
         db.commit()
     finally:
         db.close()
+
+
+def ingest_historical_schedules(seasons: list[int]) -> None:
+    """One-time-ish backfill of older seasons' real final scores — only needed so
+    head-to-head lookups have real history to fall back on (e.g. two teams that
+    haven't played each other in the last season or two). Idempotent (upserts by
+    nflverse_game_id), safe to re-run; never touches player-stat/trend windows."""
+    if not seasons:
+        return
+    db = SessionLocal()
+    try:
+        team_ids = upsert_teams(db)
+        schedule = nfl.load_schedules(seasons).to_pandas()
+        _upsert_games_from_schedule(db, schedule, team_ids)
+        db.commit()
+    finally:
+        db.close()
+
 
 
 if __name__ == "__main__":
