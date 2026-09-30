@@ -69,9 +69,20 @@ export interface CheatsheetRow {
   hits: number;
   games: number;
   hit_rate: number;
+  hit_rate_ci_low?: number | null; // Wilson score lower bound
+  hit_rate_ci_high?: number | null; // Wilson score upper bound
+  market_line?: number | null; // real sportsbook line, if we have a matching quote
+  market_price?: number | null; // American odds price for our side at that line
+  market_implied_prob?: number | null; // de-vigged fair probability from market_price
+  market_hits?: number | null; // our hit count recomputed against the REAL market line
+  market_games?: number | null;
+  edge?: number | null; // market_hits/market_games minus market_implied_prob
   without_player?: string | null;
+  without_player_hits?: number | null;
+  without_player_games?: number | null;
   opponent_rank?: number | null;
   opponent_team_count?: number | null;
+  opponent_team?: string | null; // upcoming opponent abbreviation, e.g. "ATL"
   
   // Contextual signal data (Linemate-style badges)
   split_hits?: number | null;
@@ -207,20 +218,25 @@ export function useBoard(season: number | null, week: number | null) {
     queryKey: ['board', season, week],
     queryFn: () => (season !== null && week !== null ? api.getBoard(season, week) : Promise.resolve([])),
     enabled: season !== null && week !== null,
+    staleTime: 60000, // 1 minute - highest priority, refresh more often
   });
 }
 
-export function useCheatsheet(minHitRate = 1.0, minGames = 3, season?: number, week?: number, daysBack?: number) {
+export function useCheatsheet(minHitRate = 1.0, minGames = 3, season?: number, week?: number, daysBack?: number, enabled = true) {
   return useQuery({
     queryKey: ['cheatsheet', minHitRate, minGames, season, week, daysBack],
     queryFn: () => api.getCheatsheet(minHitRate, minGames, season, week, daysBack),
+    enabled: enabled,
+    staleTime: 90000, // 1.5 minutes - second priority
   });
 }
 
-export function useTrendGroups(season?: number, week?: number, daysBack?: number) {
+export function useTrendGroups(season?: number, week?: number, daysBack?: number, enabled = true) {
   return useQuery({
     queryKey: ['trendGroups', season, week, daysBack],
     queryFn: () => api.getTrendGroups(season, week, daysBack),
+    enabled: enabled,
+    staleTime: 0, // Force fresh data to pick up new injury_impact/opponent_rank
   });
 }
 
@@ -229,14 +245,16 @@ export function useMatchup(gameId: number | null) {
     queryKey: ['matchup', gameId],
     queryFn: () => (gameId !== null ? api.getMatchup(gameId) : Promise.reject('No gameId')),
     enabled: gameId !== null,
+    staleTime: 120000, // 2 minutes
   });
 }
 
-export function useParlays(gameId: number | null) {
+export function useParlays(gameId: number | null, enabled = true) {
   return useQuery({
     queryKey: ['parlays', gameId],
     queryFn: () => (gameId !== null ? api.getParlays(gameId) : Promise.resolve([])),
-    enabled: gameId !== null,
+    enabled: gameId !== null && enabled,
+    staleTime: 120000, // 2 minutes - background data
   });
 }
 

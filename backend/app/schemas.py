@@ -81,9 +81,20 @@ class CheatsheetRowOut(BaseModel):
     hits: int
     games: int
     hit_rate: float
+    hit_rate_ci_low: float | None = None  # Wilson score lower bound — how bad it could really be
+    hit_rate_ci_high: float | None = None  # Wilson score upper bound
+    market_line: float | None = None  # real sportsbook line matched to this signal, if available
+    market_price: float | None = None  # American odds price for our side (over/under) at that line
+    market_implied_prob: float | None = None  # de-vigged fair probability implied by market_price
+    market_hits: int | None = None  # our hit count recomputed against the REAL market line (not our own threshold)
+    market_games: int | None = None  # games count for the same recomputation
+    edge: float | None = None  # market_hits/market_games minus market_implied_prob; only set with a real match
     without_player: str | None = None  # set only for the injury-impact category
+    without_player_hits: int | None = None  # this player's hits specifically in games teammate missed
+    without_player_games: int | None = None  # games count for the same window
     opponent_rank: int | None = None  # set only for the opponent-rank category (1 = best defense)
     opponent_team_count: int | None = None  # total teams, so the frontend can render "Nth of M"
+    opponent_team: str | None = None  # upcoming opponent abbreviation, e.g. "ATL is a good matchup"
     
     # Contextual signal data (Linemate-style badges)
     split_hits: int | None = None  # Home/away split hits (if available from home_away_splits category)

@@ -69,6 +69,7 @@ def _team_form(db: Session, sport: str, team_id: int, limit: int = 5) -> list[st
 
 def _to_row(signal: PlayerTrendSignal) -> CheatsheetRowOut:
     hit_rate = signal.recent_form_hits / signal.recent_form_games if signal.recent_form_games else 0.0
+    ci_low, ci_high = wilson_interval(signal.recent_form_hits, signal.recent_form_games)
     return CheatsheetRowOut(
         player_name=signal.player.full_name,
         team=signal.player.team.abbreviation if signal.player.team else "",
@@ -78,6 +79,8 @@ def _to_row(signal: PlayerTrendSignal) -> CheatsheetRowOut:
         hits=signal.recent_form_hits,
         games=signal.recent_form_games,
         hit_rate=round(hit_rate, 3),
+        hit_rate_ci_low=round(ci_low, 3),
+        hit_rate_ci_high=round(ci_high, 3),
     )
 
 
@@ -120,6 +123,7 @@ def _moneyline_trend(db: Session, sport: str, game: Game) -> CheatsheetRowOut | 
     if not candidates:
         return None
     rate, wins, games, abbr = max(candidates, key=lambda c: c[0])
+    ci_low, ci_high = wilson_interval(wins, games)
     return CheatsheetRowOut(
         player_name=abbr,
         team=abbr,
@@ -129,6 +133,8 @@ def _moneyline_trend(db: Session, sport: str, game: Game) -> CheatsheetRowOut | 
         hits=wins,
         games=games,
         hit_rate=round(rate, 3),
+        hit_rate_ci_low=round(ci_low, 3),
+        hit_rate_ci_high=round(ci_high, 3),
     )
 
 
@@ -156,6 +162,7 @@ def _team_points_trend(db: Session, sport: str, team_id: int, abbr: str) -> Chea
         if best is None or rate > best[0]:
             best = (rate, hits, threshold)
     rate, hits, threshold = best
+    ci_low, ci_high = wilson_interval(hits, len(scores))
     return CheatsheetRowOut(
         player_name=abbr,
         team=abbr,
@@ -165,6 +172,8 @@ def _team_points_trend(db: Session, sport: str, team_id: int, abbr: str) -> Chea
         hits=hits,
         games=len(scores),
         hit_rate=round(rate, 3),
+        hit_rate_ci_low=round(ci_low, 3),
+        hit_rate_ci_high=round(ci_high, 3),
     )
 
 
@@ -195,6 +204,7 @@ def _game_total_trend(db: Session, sport: str, game: Game) -> CheatsheetRowOut |
         if best is None or rate > best[0]:
             best = (rate, hits, threshold)
     rate, hits, threshold = best
+    ci_low, ci_high = wilson_interval(hits, len(combined_scores))
     return CheatsheetRowOut(
         player_name=f"{game.away_team.abbreviation} @ {game.home_team.abbreviation}",
         team="",
@@ -204,6 +214,8 @@ def _game_total_trend(db: Session, sport: str, game: Game) -> CheatsheetRowOut |
         hits=hits,
         games=len(combined_scores),
         hit_rate=round(rate, 3),
+        hit_rate_ci_low=round(ci_low, 3),
+        hit_rate_ci_high=round(ci_high, 3),
     )
 
 

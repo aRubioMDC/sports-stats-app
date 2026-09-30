@@ -6,12 +6,14 @@ interface Category {
   icon: string;
   title: string;
   rows: CheatsheetRow[];
+  metric?: "recent" | "h2h" | "split"; // which hits/games pair to display
 }
 
 function GroupColumn({ 
   icon, 
   title, 
   rows,
+  metric = "recent",
   teamLogos 
 }: Category & { teamLogos?: Record<string, { logoUrl: string; primaryColor: string }> }) {
   return (
@@ -24,6 +26,12 @@ function GroupColumn({
         {rows.length === 0 && <span className="text-xs text-white/30">Not enough data yet.</span>}
         {rows.map((row, i) => {
           const teamLogo = teamLogos?.[row.team];
+          const [hits, games] =
+            metric === "h2h"
+              ? [row.h2h_hits ?? row.hits, row.h2h_games ?? row.games]
+              : metric === "split"
+                ? [row.split_hits ?? row.hits, row.split_games ?? row.games]
+                : [row.hits, row.games];
           return (
             <div key={i} className="flex items-center justify-between gap-2 text-xs">
               <div className="flex items-center gap-1.5 min-w-0">
@@ -38,7 +46,7 @@ function GroupColumn({
                 </div>
               </div>
               <span className="font-semibold text-emerald-400 shrink-0">
-                {row.hits}/{row.games}
+                {hits}/{games}
               </span>
             </div>
           );
@@ -68,9 +76,9 @@ export function CheatsheetGroups({
 }) {
   const categories: Category[] = [
     { icon: "⚡", title: "100% Recent Form", rows: recentForm },
-    { icon: "🛡️", title: "100% Versus Opponent", rows: versusOpponent },
+    { icon: "🛡️", title: "100% Versus Opponent", rows: versusOpponent, metric: "h2h" },
     { icon: "↗️", title: "100% Alternate Lines", rows: alternateLines },
-    { icon: "📍", title: "100% Home/Away Games", rows: homeAwaySplits },
+    { icon: "📍", title: "100% Home/Away Games", rows: homeAwaySplits, metric: "split" },
     { icon: "🔻", title: "100% Unders Only", rows: undersOnly },
     { icon: "👥", title: "100% Team Form", rows: teamForm },
   ];
@@ -121,7 +129,7 @@ export function CheatsheetGroups({
         className="animate-carousel-slide grid grid-cols-1 gap-3 md:grid-cols-3"
       >
         {visible.map((cat) => (
-          <GroupColumn key={cat.title} icon={cat.icon} title={cat.title} rows={cat.rows} teamLogos={teamLogos} />
+          <GroupColumn key={cat.title} icon={cat.icon} title={cat.title} rows={cat.rows} metric={cat.metric} teamLogos={teamLogos} />
         ))}
       </div>
     </div>
