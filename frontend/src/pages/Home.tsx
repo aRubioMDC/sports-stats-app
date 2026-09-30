@@ -65,12 +65,33 @@ export function Home() {
   const season = configQuery.data?.current_season ?? null;
   const week = selectedWeek ?? configQuery.data?.current_week ?? null;
   
+  // Priority 1: Load board first (games grid - what user sees)
   const boardQuery = useBoard(season, week);
-  // Trending Today: Use precomputed high-confidence signals (not daily filtering)
+  
+  // Priority 2: Load cheatsheet after board is ready (Trending Today)
   // Lower thresholds to get more results from available signals
-  const cheatsheetQuery = useCheatsheet(0.5, 0, season ?? undefined, week ?? undefined);
-  const trendGroupsQuery = useTrendGroups(season ?? undefined, week ?? undefined);
-  const parlaysQuery = useParlays(selectedGameId);
+  const cheatsheetQuery = useCheatsheet(
+    0.5,
+    0,
+    season ?? undefined,
+    week ?? undefined,
+    undefined,
+    boardQuery.isSuccess // Enable only after board loads
+  );
+  
+  // Priority 3: Load trend groups after cheatsheet is ready (Advanced Tools - background)
+  const trendGroupsQuery = useTrendGroups(
+    season ?? undefined,
+    week ?? undefined,
+    undefined,
+    cheatsheetQuery.isSuccess // Enable only after cheatsheet loads
+  );
+  
+  // Priority 2.5: Load parlays after board loads (mid-priority background data)
+  const parlaysQuery = useParlays(
+    selectedGameId,
+    boardQuery.isSuccess // Enable after board loads
+  );
 
   // Derive state from queries early (needed for useMemo dependencies)
   const board = boardQuery.data ?? [];
@@ -94,13 +115,13 @@ export function Home() {
         return b.hit_rate - a.hit_rate;
       })
       .map(({ gameTime, ...trend }) => trend);
-  }, [cheatsheetQuery.data, setRenderTick]); // Re-sort every 30s via setRenderTick
+  }, [cheatsheetQuery.data]);
 
-  // Sort injury impact rows by upcoming game time and hit rate
+  // Sort opponent rank rows by upcoming game time and hit rate
   const sortedInjuryRows = useMemo(() => {
     const rows = trendGroups?.injury_impact ?? [];
     const now = new Date().getTime();
-    
+
     return rows
       .map(row => ({
         ...row,
@@ -108,12 +129,11 @@ export function Home() {
       }))
       .filter(row => row.gameTime > now) // Only upcoming games
       .sort((a, b) => {
-        // Sort by: game time (ascending), then by hit_rate (descending)
         if (a.gameTime !== b.gameTime) return a.gameTime - b.gameTime;
         return b.hit_rate - a.hit_rate;
       })
       .map(({ gameTime, ...row }) => row);
-  }, [trendGroups?.injury_impact, setRenderTick]);
+  }, [trendGroups?.injury_impact]);
 
   // Sort opponent rank rows by upcoming game time and hit rate
   const sortedOpponentRows = useMemo(() => {
@@ -132,7 +152,7 @@ export function Home() {
         return b.hit_rate - a.hit_rate;
       })
       .map(({ gameTime, ...row }) => row);
-  }, [trendGroups?.opponent_rank, setRenderTick]);
+  }, [trendGroups?.opponent_rank]);
 
   // Build team logos mapping
   const teamLogos = useMemo(() => {
@@ -160,17 +180,35 @@ export function Home() {
     api.trackEvent("page_view_home");
   }, []);
 
-  // Auto-refresh trend ordering every 30 seconds to prioritize upcoming games
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setRenderTick(prev => prev + 1);
-    }, 30000); // Re-sort every 30 seconds
-    
-    return () => clearInterval(interval);
-  }, []);
-
-  // Derive remaining state from queries
-  const trends = sortedTrends.slice(0, 3);
+  // Derive remaining state from queries — cap to one prop per player, and
+  // prefer spreading across different teams, so "Trending Today" isn't just
+  // one game's players filling every slot.
+  const trends = useMemo(() => {
+    const seenPlayers = new Set<string>();
+    const seenTeams = new Set<string>();
+    const diversified: typeof sortedTrends = [];
+    const leftover: typeof sortedTrends = [];
+    for (const trend of sortedTrends) {
+      if (seenPlayers.has(trend.player_name)) continue;
+      if (seenTeams.has(trend.team)) {
+        leftover.push(trend);
+        continue;
+      }
+      seenPlayers.add(trend.player_name);
+      seenTeams.add(trend.team);
+      diversified.push(trend);
+      if (diversified.length === 3) break;
+    }
+    // Not enough distinct teams to fill all 3 slots — backfill from leftovers
+    // rather than showing fewer trending cards than we have data for.
+    for (const trend of leftover) {
+      if (diversified.length === 3) break;
+      if (seenPlayers.has(trend.player_name)) continue;
+      seenPlayers.add(trend.player_name);
+      diversified.push(trend);
+    }
+    return diversified;
+  }, [sortedTrends]);
   const lastUpdated = configQuery.data?.last_updated ?? null;
   const error = configQuery.error || boardQuery.error ? "Could not load data" : null;
   const loading = configQuery.isLoading || boardQuery.isLoading;
@@ -223,9 +261,9 @@ export function Home() {
   };
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-8">
+    <div className="mx-auto max-w-6xl px-4 py-6">
       {/* Header */}
-      <div className="mb-1 flex items-center justify-between">
+      <div className="mb-3 flex items-center justify-between">
         <div>
           <h1 className="text-4xl font-black tracking-tight text-white">Week {week}</h1>
           <p className="mt-1 text-sm text-white/60">Matchups with context that matters most</p>
@@ -234,7 +272,7 @@ export function Home() {
       </div>
       
       {/* Updated badge + Refresh */}
-      <div className="mb-6 flex items-center justify-between">
+      <div className="mb-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="flex h-2 w-2 items-center">
             <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-400">
@@ -264,7 +302,7 @@ export function Home() {
       </div>
 
       {/* Week Navigation */}
-      <div className="mb-6 flex w-full items-center gap-2 rounded-xl border border-white/10 bg-[#12141a] p-1 sm:hidden">
+      <div className="mb-4 flex w-full items-center gap-2 rounded-xl border border-white/10 bg-[#12141a] p-1 sm:hidden">
         <button
           type="button"
           onClick={() => setSelectedWeek(Math.max(1, (week ?? 1) - 1))}
@@ -298,7 +336,7 @@ export function Home() {
         </button>
       </div>
 
-      <div className="mb-6 hidden w-full items-center gap-2 rounded-xl border border-white/10 bg-[#12141a] p-1 sm:flex">
+      <div className="mb-4 hidden w-full items-center gap-2 rounded-xl border border-white/10 bg-[#12141a] p-1 sm:flex">
         <button
           type="button"
           onClick={() => setSelectedWeek(Math.max(1, (week ?? 1) - 1))}
@@ -485,7 +523,7 @@ export function Home() {
       )}
 
       {/* Advanced Tools */}
-      {trendGroups && (sortedInjuryRows.length > 0 || sortedOpponentRows.length > 0) && (
+      {trendGroups && (
         <div className="mt-12">
           <AdvancedToolsWidget injuryRows={sortedInjuryRows} opponentRankRows={sortedOpponentRows} teamLogos={teamLogos} />
         </div>
