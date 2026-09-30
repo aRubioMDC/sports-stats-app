@@ -2,11 +2,11 @@
 
 import nflreadpy as nfl_data
 
-from app.etl.compute_trends import compute_trends
-from app.etl.ingest_odds import ingest_odds
-from app.etl.ingest_player_stats import ingest_player_stats
-from app.etl.ingest_schedules import ingest_schedules
-from app.etl.ingest_team_stats import ingest_team_stats
+from .compute_trends import compute_trends
+from .ingest_odds import ingest_odds, ingest_player_prop_odds
+from .ingest_player_stats import ingest_player_stats
+from .ingest_schedules import ingest_schedules
+from .ingest_team_stats import ingest_team_stats
 
 
 def run_all() -> None:
@@ -17,6 +17,7 @@ def run_all() -> None:
     ingest_team_stats(season)
     compute_trends(season)
     ingest_odds()
+    ingest_player_prop_odds()
 
 
 if __name__ == "__main__":
