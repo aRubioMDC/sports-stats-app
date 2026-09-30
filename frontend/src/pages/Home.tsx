@@ -499,11 +499,6 @@ export function Home() {
               <CheatsheetRowCard key={`${row.player_name}-${row.stat_name}-${i}`} row={row} teamLogos={teamLogos} />
             ))}
           </div>
-          <div className="mt-6 p-4 rounded-lg bg-gradient-to-r from-emerald-400/10 to-sky-400/10 border border-emerald-400/20">
-            <div className="text-xs text-white/70">
-              <span className="font-semibold text-white">💡 Why these signals?</span> Selected based on hit rate, recent form consistency, and sample size. Each signal represents strong predictive value in recent games.
-            </div>
-          </div>
         </div>
       )}
 
