@@ -240,6 +240,8 @@ export const api = {
   },
   getBoard: (season: number, week: number) =>
     getJson<BoardGame[]>(`/${DEFAULT_SPORT}/board?season=${season}&week=${week}`),
+  getByeTeams: (season: number, week: number) =>
+    getJson<Team[]>(`/${DEFAULT_SPORT}/board/byes?season=${season}&week=${week}`),
   getTrendGroups: (season?: number, week?: number, daysBack?: number) => {
     const params = new URLSearchParams();
     if (season !== undefined) params.append('season', season.toString());
@@ -285,6 +287,15 @@ export function useBoard(season: number | null, week: number | null) {
     queryFn: () => (season !== null && week !== null ? api.getBoard(season, week) : Promise.resolve([])),
     enabled: season !== null && week !== null,
     staleTime: 60000, // 1 minute - highest priority, refresh more often
+  });
+}
+
+export function useByeTeams(season: number | null, week: number | null) {
+  return useQuery({
+    queryKey: ['byeTeams', season, week],
+    queryFn: () => (season !== null && week !== null ? api.getByeTeams(season, week) : Promise.resolve([])),
+    enabled: season !== null && week !== null,
+    staleTime: 300000, // 5 minutes - real schedule data, rarely changes
   });
 }
 

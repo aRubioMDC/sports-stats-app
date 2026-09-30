@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
-import { api, useBoard, useCheatsheet, useConfig, useParlays, useTeams, useTrendGroups } from "../api";
+import { api, useBoard, useByeTeams, useCheatsheet, useConfig, useParlays, useTeams, useTrendGroups } from "../api";
 import { CheatsheetRowCard } from "../components/CheatsheetRowCard";
 import { MatchRow } from "../components/MatchRow";
 import { CheatsheetGroups } from "../components/CheatsheetGroups";
@@ -67,6 +67,7 @@ export function Home() {
   
   // Priority 1: Load board first (games grid - what user sees)
   const boardQuery = useBoard(season, week);
+  const byeTeamsQuery = useByeTeams(season, week);
   
   // Priority 2: Load cheatsheet after board is ready (Trending Today)
   // Lower thresholds to get more results from available signals
@@ -164,6 +165,10 @@ export function Home() {
     });
     return mapping;
   }, [teamsQuery.data]);
+
+  // Real bye-week teams for this week, filtered server-side to active
+  // franchises only (excludes stale relocated-team rows like old OAK/SD/STL).
+  const byeTeams = byeTeamsQuery.data ?? [];
 
   // Auto-select first game when board loads
   useEffect(() => {
@@ -270,6 +275,22 @@ export function Home() {
         </div>
         {season !== null && <span className="text-sm font-semibold text-white/40">{season} Season</span>}
       </div>
+
+      {byeTeams.length > 0 && (
+        <div className="mb-4 flex flex-wrap items-center gap-2 text-xs text-white/50">
+          <span className="font-semibold uppercase tracking-wide text-white/40">Bye:</span>
+          {byeTeams.map((team) => (
+            <span key={team.id} className="flex items-center gap-1">
+              {team.logo_url ? (
+                <img src={team.logo_url} alt={team.abbreviation} className="h-4 w-4 object-contain" />
+              ) : (
+                <span className="h-4 w-4 rounded-full" style={{ backgroundColor: team.primary_color }} />
+              )}
+              {team.abbreviation}
+            </span>
+          ))}
+        </div>
+      )}
       
       {/* Updated badge + Refresh */}
       <div className="mb-4 flex items-center justify-between">

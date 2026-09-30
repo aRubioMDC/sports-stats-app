@@ -16,7 +16,7 @@ from ..core.sport_registry import get_sport
 from ..core.stats_math import wilson_interval
 from ..db import get_db
 from ..models import Game, Player, PlayerTrendSignal, PlayerWeeklyStat, Team, TeamSeasonStats
-from ..schemas import BoardGameOut, CheatsheetRowOut, GameOut, ParlayOut, TeamGeneralStats
+from ..schemas import BoardGameOut, CheatsheetRowOut, GameOut, ParlayOut, TeamGeneralStats, TeamOut
 
 router = APIRouter(prefix="/{sport}", tags=["board"])
 
@@ -328,6 +328,26 @@ def get_board(season: int, week: int, sport: str = Depends(valid_sport), db: Ses
             )
         )
     return rows
+
+
+@router.get("/board/byes", response_model=list[TeamOut])
+@ttl_cache(seconds=300)
+def get_bye_teams(season: int, week: int, sport: str = Depends(valid_sport), db: Session = Depends(get_db)):
+    """Real teams not playing this week — filtered to teams that actually appear
+    somewhere in this season's real schedule, so stale relocated-franchise rows
+    (old LAR/OAK/SD/STL aliases) never show up as a fake "bye"."""
+    active_ids: set[int] = set()
+    playing_ids: set[int] = set()
+    for g in db.query(Game).filter(Game.sport == sport, Game.season == season):
+        active_ids.add(g.home_team_id)
+        active_ids.add(g.away_team_id)
+        if g.week == week:
+            playing_ids.add(g.home_team_id)
+            playing_ids.add(g.away_team_id)
+    bye_ids = active_ids - playing_ids
+    if not bye_ids:
+        return []
+    return db.query(Team).filter(Team.id.in_(bye_ids)).order_by(Team.abbreviation).all()
 
 
 @router.get("/games/{game_id}/parlays", response_model=list[ParlayOut])
