@@ -1,25 +1,62 @@
 """Compute Linemate-style hit-rate trend signals per (player, stat, threshold),
 using the same small-sample blending rule as team stats.
 
-Preloads all weekly stats and existing trend signals up front instead of
-querying per player/stat/threshold — see ingest_player_stats.py for why.
+Preloads all weekly stats up front instead of querying per player/stat/threshold
+— see ingest_player_stats.py for why.
 """
 
+import math
 from collections import defaultdict
 
-from app.config import settings
-from app.db import SessionLocal
-from app.etl.stat_window import get_stat_window
-from app.models import Player, PlayerTrendSignal, PlayerWeeklyStat
+from ..config import settings
+from ..db import SessionLocal
+from .stat_window import get_stat_window
+from ..models import Player, PlayerTrendSignal, PlayerWeeklyStat
 
 STAT_NAMES = ["receptions", "receiving_yards", "rushing_yards", "passing_yards"]
-# Common sportsbook-style thresholds per stat, used to seed cheatsheet rows.
-DEFAULT_THRESHOLDS = {
-    "receptions": [1.5, 3.5, 4.5],
-    "receiving_yards": [24.5, 49.5, 74.5],
-    "rushing_yards": [24.5, 49.5, 74.5],
-    "passing_yards": [199.5, 249.5, 299.5],
+# Lines are placed at a percentile of each player's own recent output, not an
+# absolute universal number — a real sportsbook doesn't post the same "74.5
+# rush yards" for a starter and a third-stringer. Percentile (not median ± a
+# fixed offset) targets a realistic "usually hits, real risk exists" rate —
+# e.g. Linemate's real D. Henry 90.5 rush yards line hit 86% (6/7), not 100%.
+LINE_PERCENTILES = {
+    "value": 0.30,  # ~70% hit rate target
+    "safe": 0.12,  # ~88% hit rate target — the safer alt line
 }
+# A stat only makes sense for certain positions — without this, a WR's
+# "passing_yards" would sit at 0 every game, making the "under" version a
+# trivial 100%-hit signal that drowns out real ones in the cheatsheet.
+RELEVANT_POSITIONS: dict[str, set[str]] = {
+    "passing_yards": {"QB"},
+    "rushing_yards": {"QB", "RB"},
+    "receiving_yards": {"WR", "TE", "RB"},
+    "receptions": {"WR", "TE", "RB"},
+}
+
+
+def _fair_threshold(values: list[float], percentile: float) -> float | None:
+    """
+    A sportsbook-style .5 line placed at a percentile of the player's own
+    recent output, so real games land on both sides of it — not a value
+    picked from a universal stat menu that's a lock (or impossible) regardless
+    of who the player is.
+
+    Requires genuine variance in the sample: a player who puts up the exact
+    same number every week doesn't have a meaningful over/under question, no
+    matter where the line is drawn (this is what let trivial "under 74.5 rush
+    yards" locks slip through for players who never touch the ball).
+    """
+    if len(values) < 3 or min(values) == max(values):
+        return None
+    sorted_vals = sorted(values)
+    idx = percentile * (len(sorted_vals) - 1)
+    lower, upper = math.floor(idx), math.ceil(idx)
+    pivot = sorted_vals[lower] if lower == upper else (
+        sorted_vals[lower] + (sorted_vals[upper] - sorted_vals[lower]) * (idx - lower)
+    )
+    if pivot <= 0:
+        return None
+    return math.floor(pivot) + 0.5
 
 
 def compute_trends(current_season: int) -> None:
@@ -37,12 +74,13 @@ def compute_trends(current_season: int) -> None:
         ):
             logs_by_player[stat.player_id].append(stat)
 
-        existing_signals = {
-            (s.player_id, s.stat_name, s.threshold): s
-            for s in db.query(PlayerTrendSignal).filter(PlayerTrendSignal.sport == "nfl").all()
-        }
+        # Thresholds are now computed per-player (see _fair_threshold), so old
+        # static-threshold rows are a different key space entirely — wipe and
+        # rebuild rather than trying to reconcile against stale rows.
+        db.query(PlayerTrendSignal).filter(PlayerTrendSignal.sport == "nfl").delete(synchronize_session=False)
+        db.flush()
 
-        for player in players:
+        for player_index, player in enumerate(players):
             all_logs = logs_by_player.get(player.id, [])
             weeks_played = sum(1 for g in all_logs if g.season == current_season)
             window = get_stat_window(current_season, weeks_played)
@@ -50,22 +88,45 @@ def compute_trends(current_season: int) -> None:
             if not game_logs:
                 continue
 
-            recent_form_games = game_logs[:5]
+            # Linemate-style "hit in N of last N" — N is however many games fall
+            # in the stat window (current season, or blended with last season
+            # early on), not a fixed slice, so a real 11-game streak reads as
+            # 11/11 instead of being truncated to a fake 5/5.
+            recent_form_games = game_logs
 
             for stat_name in STAT_NAMES:
-                for threshold in DEFAULT_THRESHOLDS[stat_name]:
-                    hits = sum(1 for g in recent_form_games if getattr(g, stat_name) > threshold)
-                    signal_key = (player.id, stat_name, threshold)
-                    signal = existing_signals.get(signal_key)
-                    if signal is None:
-                        signal = PlayerTrendSignal(
-                            sport="nfl", player_id=player.id, stat_name=stat_name, threshold=threshold
+                if player.position not in RELEVANT_POSITIONS[stat_name]:
+                    continue
+                values = [getattr(g, stat_name) for g in recent_form_games]
+                seen_thresholds: set[float] = set()
+                for percentile in LINE_PERCENTILES.values():
+                    threshold = _fair_threshold(values, percentile)
+                    if threshold is None or threshold in seen_thresholds:
+                        continue
+                    seen_thresholds.add(threshold)
+                    for direction in ("over", "under"):
+                        if direction == "over":
+                            hits = sum(1 for v in values if v > threshold)
+                        else:
+                            hits = sum(1 for v in values if v < threshold)
+                        db.add(
+                            PlayerTrendSignal(
+                                sport="nfl",
+                                player_id=player.id,
+                                stat_name=stat_name,
+                                threshold=threshold,
+                                direction=direction,
+                                window_mode=window.window_mode,
+                                recent_form_hits=hits,
+                                recent_form_games=len(values),
+                            )
                         )
-                        db.add(signal)
-                        existing_signals[signal_key] = signal
-                    signal.window_mode = window.window_mode
-                    signal.recent_form_hits = hits
-                    signal.recent_form_games = len(recent_form_games)
+
+            # Flush in small batches instead of one huge commit at the end —
+            # Supabase's pooled connection enforces a per-statement timeout,
+            # and a single executemany covering thousands of rows exceeds it.
+            if player_index % 100 == 99:
+                db.flush()
         db.commit()
     finally:
 
