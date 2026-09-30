@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import { api, useConfig, useTeams, useTrendGroups } from "../api";
 import type { CheatsheetRow } from "../api";
 import { formatTrendLine, ordinal, STAT_LABELS } from "../lib/statLabels";
@@ -757,7 +758,16 @@ function TrendDetailModal({ row, onClose, onPrev, onNext, hasPrev, hasNext, posi
                 <div className="h-12 w-12 shrink-0 rounded-full" style={{ backgroundColor: teamLogo?.primaryColor || "#ffffff" }} />
               )}
               <div>
-                <h1 className="text-2xl font-black leading-tight text-white sm:text-3xl">{row.player_name}</h1>
+                {row.player_id != null ? (
+                  <Link
+                    to={`/players/${row.player_id}`}
+                    className="text-2xl font-black leading-tight text-white hover:text-emerald-400 hover:underline sm:text-3xl"
+                  >
+                    {row.player_name}
+                  </Link>
+                ) : (
+                  <h1 className="text-2xl font-black leading-tight text-white sm:text-3xl">{row.player_name}</h1>
+                )}
                 <p className="text-sm text-white/60">
                   {row.team} • {matchup ?? "No upcoming game"}
                   {kickoff && ` • ${kickoff}`}

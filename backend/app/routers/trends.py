@@ -523,6 +523,7 @@ def _get_cheatsheet_internal(
 
         rows.append(
             CheatsheetRowOut(
+                player_id=signal.player_id,
                 player_name=signal.player.full_name,
                 team=signal.player.team.abbreviation if signal.player.team else "",
                 stat_name=signal.stat_name,
@@ -564,6 +565,155 @@ def _get_cheatsheet_internal(
         )
     rows.sort(key=lambda r: (-r.hit_rate, -r.games))
     return rows[:100]  # Return max 100 results
+
+
+def get_player_signal_rows(sport: str, player_id: int, db: Session) -> list[CheatsheetRowOut]:
+    """
+    Every real signal computed for one player — no top-100 cross-player cut and
+    no min_hit_rate/min_games floor, since a dedicated player page should show
+    the full real picture (including weaker/unfavorable signals), not just the
+    subset that made the site-wide cheatsheet.
+    """
+    signals = (
+        db.query(PlayerTrendSignal)
+        .options(joinedload(PlayerTrendSignal.player).joinedload(Player.team))
+        .filter(PlayerTrendSignal.sport == sport, PlayerTrendSignal.player_id == player_id)
+        .all()
+    )
+    if not signals:
+        return []
+
+    player = signals[0].player
+    next_game_by_team: dict[int, Game | None] = {}
+    if player.team_id:
+        next_game = (
+            db.query(Game)
+            .filter(
+                Game.sport == sport,
+                Game.status.in_(["scheduled", "in_progress"]),
+                (Game.home_team_id == player.team_id) | (Game.away_team_id == player.team_id),
+            )
+            .order_by(Game.kickoff.asc())
+            .first()
+        )
+        next_game_by_team[player.team_id] = next_game
+
+    latest_game = db.query(Game).filter(Game.sport == sport).order_by(Game.season.desc()).first()
+    current_season = latest_game.season if latest_game else 2026
+    min_season = current_season - 1
+
+    opponent_lookups: set[tuple[int, int]] = set()
+    opponent_ids: set[int] = set()
+    next_game = next_game_by_team.get(player.team_id) if player.team_id else None
+    if next_game:
+        opponent_id = next_game.away_team_id if next_game.home_team_id == player.team_id else next_game.home_team_id
+        if opponent_id:
+            opponent_lookups.add((opponent_id, current_season))
+            opponent_ids.add(opponent_id)
+    opponent_ranks = _batch_calculate_opponent_ranks(db, opponent_lookups)
+    opponent_abbrs = _batch_fetch_team_abbreviations(db, opponent_ids)
+    stats_by_player = _batch_fetch_player_logs(db, {player_id})
+    injury_impacts = _batch_compute_injury_impacts(db, {player.team_id} if player.team_id else set(), min_season)
+    market_odds_by_player = _batch_fetch_player_prop_odds(db, {player_id})
+
+    rows: list[CheatsheetRowOut] = []
+    for signal in signals:
+        if not signal.recent_form_games:
+            continue
+        hits, games = signal.recent_form_hits, signal.recent_form_games
+        hit_rate = hits / games
+
+        game_id = None
+        game_kickoff = None
+        is_home = None
+        opponent_rank = None
+        opponent_team_count = None
+        opponent_id = None
+        opponent_abbr = None
+        if next_game:
+            game_id = next_game.id
+            game_kickoff = next_game.kickoff.isoformat() if next_game.kickoff else None
+            is_home = next_game.home_team_id == player.team_id
+            opponent_id = next_game.away_team_id if is_home else next_game.home_team_id
+            opp_rank = opponent_ranks.get((opponent_id, current_season)) if opponent_id else None
+            opponent_rank = opp_rank
+            opponent_team_count = 32 if opp_rank else None
+            opponent_abbr = opponent_abbrs.get(opponent_id) if opponent_id else None
+
+        player_logs = stats_by_player.get(player_id, [])
+        split_hits, split_games = _home_away_split_rate(player_logs, signal.stat_name, signal.threshold, is_home, min_season)
+        h2h_hits, h2h_games = _head_to_head_rate(player_logs, signal.stat_name, signal.threshold, opponent_id, min_season)
+
+        without_player = None
+        without_player_hits = None
+        without_player_games = None
+        team_absence = injury_impacts.get(player.team_id) if player.team_id else None
+        if team_absence:
+            teammate_name, missed_weeks = team_absence
+            if teammate_name != player.full_name:
+                imp_hits, imp_games = _injury_impact_rate(player_logs, signal.stat_name, signal.threshold, missed_weeks)
+                if imp_games >= 2:
+                    without_player = teammate_name
+                    without_player_hits = imp_hits
+                    without_player_games = imp_games
+
+        ci_low, ci_high = wilson_interval(hits, games)
+
+        market_line = market_opening_line = market_price = market_implied_prob = None
+        market_hits = market_games = edge = kelly = None
+        market_match = _match_market_edge(
+            market_odds_by_player.get(player_id, []), player_logs, signal.stat_name, signal.direction, min_season
+        )
+        if market_match:
+            (
+                market_line,
+                market_price,
+                market_implied_prob,
+                market_hits,
+                market_games,
+                edge,
+                market_opening_line,
+                kelly,
+            ) = market_match
+
+        rows.append(
+            CheatsheetRowOut(
+                player_id=player_id,
+                player_name=player.full_name,
+                team=player.team.abbreviation if player.team else "",
+                stat_name=signal.stat_name,
+                threshold=signal.threshold,
+                direction=signal.direction,
+                hits=hits,
+                games=games,
+                hit_rate=round(hit_rate, 3),
+                hit_rate_ci_low=round(ci_low, 3),
+                hit_rate_ci_high=round(ci_high, 3),
+                market_line=market_line,
+                market_opening_line=market_opening_line,
+                market_price=market_price,
+                market_implied_prob=market_implied_prob,
+                market_hits=market_hits,
+                market_games=market_games,
+                edge=edge,
+                kelly_fraction=kelly,
+                without_player=without_player,
+                without_player_hits=without_player_hits,
+                without_player_games=without_player_games,
+                opponent_rank=opponent_rank,
+                opponent_team_count=opponent_team_count,
+                opponent_team=opponent_abbr,
+                split_hits=split_hits if split_games > 0 else None,
+                split_games=split_games if split_games > 0 else None,
+                h2h_hits=h2h_hits if h2h_games > 0 else None,
+                h2h_games=h2h_games if h2h_games > 0 else None,
+                game_id=game_id,
+                game_kickoff=game_kickoff,
+                is_home=is_home,
+            )
+        )
+    rows.sort(key=lambda r: (-r.hit_rate, -r.games))
+    return rows
 
 
 @router.get("/cheatsheet", response_model=list[CheatsheetRowOut])

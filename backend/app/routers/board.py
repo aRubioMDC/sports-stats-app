@@ -71,6 +71,7 @@ def _to_row(signal: PlayerTrendSignal) -> CheatsheetRowOut:
     hit_rate = signal.recent_form_hits / signal.recent_form_games if signal.recent_form_games else 0.0
     ci_low, ci_high = wilson_interval(signal.recent_form_hits, signal.recent_form_games)
     return CheatsheetRowOut(
+        player_id=signal.player_id,
         player_name=signal.player.full_name,
         team=signal.player.team.abbreviation if signal.player.team else "",
         stat_name=signal.stat_name,

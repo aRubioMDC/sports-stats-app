@@ -72,7 +72,18 @@ class PlayerTrendOut(BaseModel):
     signals: list[TrendSignalOut]
 
 
+class PlayerInfoOut(BaseModel):
+    """Minimal real player identity for a player detail page header."""
+
+    id: int
+    full_name: str
+    position: str
+    team: str | None
+    headshot_url: str | None
+
+
 class CheatsheetRowOut(BaseModel):
+    player_id: int | None = None  # None for team-level rows (moneyline/team totals), real player id otherwise
     player_name: str
     team: str
     stat_name: str

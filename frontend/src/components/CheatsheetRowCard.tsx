@@ -1,3 +1,4 @@
+import { Link } from "react-router-dom";
 import type { CheatsheetRow } from "../api";
 import { formatTrendLine, ordinal, STAT_LABELS } from "../lib/statLabels";
 import { useBankroll } from "../lib/bankroll";
@@ -128,7 +129,16 @@ export function CheatsheetRowCard({ row, teamLogos }: CheatsheetRowCardProps) {
           <div className="h-7 w-7 shrink-0 rounded-full" style={{ backgroundColor: teamLogo?.primaryColor || "#ffffff" }} />
         )}
         <div className="min-w-0 flex-1">
-          <div className="font-semibold text-white text-sm truncate">{row.player_name}</div>
+          {row.player_id != null ? (
+            <Link
+              to={`/players/${row.player_id}`}
+              className="font-semibold text-white text-sm truncate hover:text-emerald-400 hover:underline block"
+            >
+              {row.player_name}
+            </Link>
+          ) : (
+            <div className="font-semibold text-white text-sm truncate">{row.player_name}</div>
+          )}
           <div className="text-xs text-white/50">{opponentLine}</div>
         </div>
       </div>

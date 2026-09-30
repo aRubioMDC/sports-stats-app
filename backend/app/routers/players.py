@@ -4,9 +4,35 @@ from sqlalchemy.orm import Session
 from ..core.deps import valid_sport
 from ..db import get_db
 from ..models import Player, PlayerTrendSignal
-from ..schemas import PlayerTrendOut, TrendSignalOut
+from ..schemas import CheatsheetRowOut, PlayerInfoOut, PlayerTrendOut, TrendSignalOut
+from .trends import get_player_signal_rows
 
 router = APIRouter(prefix="/{sport}/players", tags=["players"])
+
+
+@router.get("/{player_id}", response_model=PlayerInfoOut)
+def get_player_info(player_id: int, sport: str = Depends(valid_sport), db: Session = Depends(get_db)):
+    player = db.query(Player).filter(Player.id == player_id, Player.sport == sport).one_or_none()
+    if player is None:
+        raise HTTPException(status_code=404, detail="Player not found")
+    return PlayerInfoOut(
+        id=player.id,
+        full_name=player.full_name,
+        position=player.position,
+        team=player.team.abbreviation if player.team else None,
+        headshot_url=player.headshot_url or None,
+    )
+
+
+@router.get("/{player_id}/cheatsheet", response_model=list[CheatsheetRowOut])
+def get_player_cheatsheet(player_id: int, sport: str = Depends(valid_sport), db: Session = Depends(get_db)):
+    """Every real signal for this player — same enrichment (splits/H2H/injury/
+    opponent-rank/market-edge/Kelly) as the site-wide cheatsheet, for a
+    dedicated player detail page."""
+    player = db.query(Player).filter(Player.id == player_id, Player.sport == sport).one_or_none()
+    if player is None:
+        raise HTTPException(status_code=404, detail="Player not found")
+    return get_player_signal_rows(sport, player_id, db)
 
 
 @router.get("/{player_id}/trends", response_model=list[PlayerTrendOut])

@@ -61,6 +61,7 @@ export interface MatchupContext {
 }
 
 export interface CheatsheetRow {
+  player_id?: number | null; // null for team-level rows (moneyline/team totals)
   player_name: string;
   team: string;
   stat_name: string;
@@ -156,9 +157,20 @@ function trackEvent(eventName: string, metadata?: Record<string, unknown>): void
   }).catch(() => undefined);
 }
 
+export interface PlayerInfo {
+  id: number;
+  full_name: string;
+  position: string;
+  team: string | null;
+  headshot_url: string | null;
+}
+
 export const api = {
   getSports: () => getJson<Sport[]>("/sports"),
   getConfig: () => getJson<Config>(`/${DEFAULT_SPORT}/config`),
+  getPlayerInfo: (playerId: number) => getJson<PlayerInfo>(`/${DEFAULT_SPORT}/players/${playerId}`),
+  getPlayerCheatsheet: (playerId: number) =>
+    getJson<CheatsheetRow[]>(`/${DEFAULT_SPORT}/players/${playerId}/cheatsheet`),
   getGames: (season: number, week: number) =>
     getJson<Game[]>(`/${DEFAULT_SPORT}/games?season=${season}&week=${week}`),
   getMatchup: (gameId: number) => getJson<MatchupContext>(`/${DEFAULT_SPORT}/games/${gameId}/matchup`),
@@ -264,5 +276,23 @@ export function useSamplePrices() {
   return useQuery({
     queryKey: ['samplePrices'],
     queryFn: () => api.getSamplePrices(),
+  });
+}
+
+export function usePlayerInfo(playerId: number | null) {
+  return useQuery({
+    queryKey: ['playerInfo', playerId],
+    queryFn: () => (playerId !== null ? api.getPlayerInfo(playerId) : Promise.reject('No playerId')),
+    enabled: playerId !== null,
+    staleTime: 300000, // 5 minutes - identity rarely changes
+  });
+}
+
+export function usePlayerCheatsheet(playerId: number | null) {
+  return useQuery({
+    queryKey: ['playerCheatsheet', playerId],
+    queryFn: () => (playerId !== null ? api.getPlayerCheatsheet(playerId) : Promise.resolve([])),
+    enabled: playerId !== null,
+    staleTime: 60000,
   });
 }
