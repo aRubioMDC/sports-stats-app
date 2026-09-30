@@ -1,5 +1,6 @@
 import type { CheatsheetRow } from "../api";
 import { formatTrendLine, ordinal, STAT_LABELS } from "../lib/statLabels";
+import { useBankroll } from "../lib/bankroll";
 
 interface CheatsheetRowCardProps {
   row: CheatsheetRow;
@@ -115,6 +116,7 @@ export function CheatsheetRowCard({ row, teamLogos }: CheatsheetRowCardProps) {
   const teamLogo = teamLogos?.[row.team];
   const signals = getSignalBadges(row);
   const opponentLine = row.opponent_team ? `${row.is_home ? "vs" : "@"} ${row.opponent_team}` : row.team;
+  const { bankroll } = useBankroll();
 
   return (
     <div className="group relative rounded-lg border border-white/10 bg-[#12141a] p-4 transition hover:border-emerald-400/30">
@@ -171,6 +173,21 @@ export function CheatsheetRowCard({ row, teamLogos }: CheatsheetRowCardProps) {
               {Math.round(row.edge * 100)}% edge
             </span>
           </div>
+          {row.market_opening_line != null && row.market_opening_line !== row.market_line && (
+            <div className="mt-1 text-[11px] text-white/40">
+              Line moved: {row.market_opening_line} → {row.market_line}{" "}
+              {row.market_line > row.market_opening_line ? "↑" : "↓"}
+            </div>
+          )}
+          {/* Quarter-Kelly suggested stake — only shown for a genuine positive
+              edge, sized off the conservative CI lower bound, never off the
+              raw point estimate. Bankroll is a session-local input, not real
+              money tracking. */}
+          {row.kelly_fraction != null && row.kelly_fraction > 0 && (
+            <div className="mt-1 text-[11px] text-emerald-400/80">
+              Suggested stake: ${(bankroll * row.kelly_fraction).toFixed(2)} ({(row.kelly_fraction * 100).toFixed(1)}% of bankroll, ¼-Kelly)
+            </div>
+          )}
         </div>
       )}
     </div>

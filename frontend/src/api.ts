@@ -72,11 +72,13 @@ export interface CheatsheetRow {
   hit_rate_ci_low?: number | null; // Wilson score lower bound
   hit_rate_ci_high?: number | null; // Wilson score upper bound
   market_line?: number | null; // real sportsbook line, if we have a matching quote
+  market_opening_line?: number | null; // earliest recorded line from the same bookmaker
   market_price?: number | null; // American odds price for our side at that line
   market_implied_prob?: number | null; // de-vigged fair probability from market_price
   market_hits?: number | null; // our hit count recomputed against the REAL market line
   market_games?: number | null;
   edge?: number | null; // market_hits/market_games minus market_implied_prob
+  kelly_fraction?: number | null; // suggested fraction of bankroll (quarter-Kelly), 0 when no edge
   without_player?: string | null;
   without_player_hits?: number | null;
   without_player_games?: number | null;

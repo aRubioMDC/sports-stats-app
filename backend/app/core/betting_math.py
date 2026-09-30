@@ -28,3 +28,24 @@ def compute_edge(model_prob: float, fair_market_prob: float) -> float:
     for the same side — positive means our model thinks this hits more often than
     the market is pricing in."""
     return model_prob - fair_market_prob
+
+
+# Full Kelly is a known ruinous bankroll strategy in practice (it assumes a
+# perfectly known true probability, which ours never is) — quarter-Kelly is
+# the standard conservative fraction used to size real bets off a Kelly edge.
+DEFAULT_KELLY_FRACTION = 0.25
+
+
+def kelly_fraction(win_prob: float, american_price: float, fraction: float = DEFAULT_KELLY_FRACTION) -> float:
+    """
+    Fraction of bankroll to stake, given our estimated win probability and the
+    real American odds price, scaled down by `fraction` (quarter-Kelly by
+    default). Returns 0 when there's no real edge — Kelly never recommends
+    betting against your own edge, and a negative/zero result means "skip
+    this bet" rather than "bet a negative amount".
+    """
+    b = american_price / 100 if american_price > 0 else 100 / abs(american_price)
+    if b <= 0:
+        return 0.0
+    full_kelly = win_prob - (1 - win_prob) / b
+    return max(0.0, full_kelly * fraction)

@@ -84,11 +84,13 @@ class CheatsheetRowOut(BaseModel):
     hit_rate_ci_low: float | None = None  # Wilson score lower bound — how bad it could really be
     hit_rate_ci_high: float | None = None  # Wilson score upper bound
     market_line: float | None = None  # real sportsbook line matched to this signal, if available
+    market_opening_line: float | None = None  # earliest recorded line from the same bookmaker
     market_price: float | None = None  # American odds price for our side (over/under) at that line
     market_implied_prob: float | None = None  # de-vigged fair probability implied by market_price
     market_hits: int | None = None  # our hit count recomputed against the REAL market line (not our own threshold)
     market_games: int | None = None  # games count for the same recomputation
     edge: float | None = None  # market_hits/market_games minus market_implied_prob; only set with a real match
+    kelly_fraction: float | None = None  # suggested fraction of bankroll (quarter-Kelly), 0 when there's no edge
     without_player: str | None = None  # set only for the injury-impact category
     without_player_hits: int | None = None  # this player's hits specifically in games teammate missed
     without_player_games: int | None = None  # games count for the same window

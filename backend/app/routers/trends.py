@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session, joinedload
 
 from ..core.cache import ttl_cache
 from ..core.deps import valid_sport
-from ..core.betting_math import american_to_implied_prob, devig_two_way
+from ..core.betting_math import american_to_implied_prob, devig_two_way, kelly_fraction
 from ..core.stats_math import wilson_interval
 from ..db import get_db
 from ..etl.ingest_odds import STAT_TO_PLAYER_MARKET
@@ -171,7 +171,7 @@ def _match_market_edge(
     stat_name: str,
     direction: str,
     min_season: int,
-) -> tuple[float, float, float, int, int, float] | None:
+) -> tuple[float, float, float, int, int, float, float, float] | None:
     """
     Finds a real market line for this player/stat and recomputes OUR hit rate
     directly against THAT real line (not our own independently-chosen
@@ -179,8 +179,9 @@ def _match_market_edge(
     priced at 41.5 would be an apples-to-oranges "edge" even though both are
     real numbers. Requires >=3 games in the window to avoid a fabricated edge
     off a tiny recomputed sample. Returns
-    (line, price, implied_prob, hits, games, edge) or None if we have no real
-    matching odds or too few games to grade them against.
+    (line, price, implied_prob, hits, games, edge, opening_line, kelly) or
+    None if we have no real matching odds or too few games to grade them
+    against.
     """
     market_key = STAT_TO_PLAYER_MARKET.get(stat_name)
     if market_key is None:
@@ -188,7 +189,13 @@ def _match_market_edge(
     matching = [r for r in odds_rows if r.market == market_key]
     if not matching:
         return None
-    line_row = matching[0]
+    # The most recent snapshot is the current price. Its opening line is
+    # tracked from the SAME bookmaker's earliest snapshot only — comparing
+    # across different bookmakers would confuse book-to-book price
+    # differences with genuine movement over time.
+    line_row = max(matching, key=lambda r: r.fetched_at)
+    same_book = [r for r in matching if r.bookmaker == line_row.bookmaker]
+    opening_line = min(same_book, key=lambda r: r.fetched_at).line
     price = line_row.over_price if direction == "over" else line_row.under_price
     if price is None:
         return None
@@ -209,7 +216,20 @@ def _match_market_edge(
         implied_prob = american_to_implied_prob(price)
 
     edge = hits / games - implied_prob
-    return (line_row.line, price, round(implied_prob, 3), hits, games, round(edge, 3))
+    # Kelly sizing uses the conservative Wilson lower bound, not the raw point
+    # estimate — a 5/5 sample shouldn't be treated as a "certain" 100% probability.
+    ci_low, _ = wilson_interval(hits, games)
+    kelly = kelly_fraction(ci_low, price)
+    return (
+        line_row.line,
+        price,
+        round(implied_prob, 3),
+        hits,
+        games,
+        round(edge, 3),
+        opening_line,
+        round(kelly, 4),
+    )
 
 
 
@@ -479,16 +499,27 @@ def _get_cheatsheet_internal(
         ci_low, ci_high = wilson_interval(hits, games)
 
         market_line = None
+        market_opening_line = None
         market_price = None
         market_implied_prob = None
         market_hits = None
         market_games = None
         edge = None
+        kelly = None
         market_match = _match_market_edge(
             market_odds_by_player.get(signal.player_id, []), player_logs, signal.stat_name, signal.direction, min_season
         )
         if market_match:
-            market_line, market_price, market_implied_prob, market_hits, market_games, edge = market_match
+            (
+                market_line,
+                market_price,
+                market_implied_prob,
+                market_hits,
+                market_games,
+                edge,
+                market_opening_line,
+                kelly,
+            ) = market_match
 
         rows.append(
             CheatsheetRowOut(
@@ -503,11 +534,13 @@ def _get_cheatsheet_internal(
                 hit_rate_ci_low=round(ci_low, 3),
                 hit_rate_ci_high=round(ci_high, 3),
                 market_line=market_line,
+                market_opening_line=market_opening_line,
                 market_price=market_price,
                 market_implied_prob=market_implied_prob,
                 market_hits=market_hits,
                 market_games=market_games,
                 edge=edge,
+                kelly_fraction=kelly,
                 # Derived from actual roster participation (a missing weekly-stat
                 # row for an established player = didn't play that week), not
                 # fabricated — see _batch_compute_injury_impacts.
