@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { api, useConfig, useTeams, useTrendGroups } from "../api";
 import type { CheatsheetRow } from "../api";
-import { formatTrendLine, ordinal, STAT_LABELS } from "../lib/statLabels";
+import { formatTrendLine, ordinal, pctColorClass, STAT_LABELS } from "../lib/statLabels";
 import { useBankroll } from "../lib/bankroll";
 
 // These map 1:1 onto the real TrendGroups categories the backend computes in
@@ -86,14 +86,6 @@ function confirmingSignalCount(row: CheatsheetRow): number {
   if (isOpponentRankEdge(row)) count++;
   if (row.edge != null && row.edge > 0) count++;
   return count;
-}
-
-// Shared red/amber/green scale for any real hit-rate percentage shown in the
-// modal, so a bettor can scan strength at a glance instead of reading numbers.
-function pctColorClass(pct: number): string {
-  if (pct >= 70) return "text-emerald-400";
-  if (pct >= 50) return "text-amber-400";
-  return "text-rose-400";
 }
 
 interface SignalChecklistItem {

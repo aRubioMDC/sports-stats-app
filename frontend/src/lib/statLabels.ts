@@ -33,3 +33,11 @@ export function ordinal(n: number): string {
   }
 }
 
+/** The app's one signal-strength color scale — emerald/amber/rose always map to
+ * real hit-rate strength (≥70 / ≥50 / below), never used decoratively. */
+export function pctColorClass(pct: number): string {
+  if (pct >= 70) return "text-emerald-400";
+  if (pct >= 50) return "text-amber-400";
+  return "text-rose-400";
+}
+

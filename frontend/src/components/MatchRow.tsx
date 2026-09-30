@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 import type { BoardGame } from "../api";
-import { formatMarketTrendLine } from "../lib/statLabels";
+import { formatMarketTrendLine, pctColorClass } from "../lib/statLabels";
 
 function formatKickoff(kickoff: string | null): string {
   if (!kickoff) return "TBD";
@@ -86,7 +86,7 @@ export function MatchRow({ row }: { row: BoardGame }) {
   return (
     <Link
       to={`/games/${game.id}`}
-      className="block rounded-xl border border-white/10 bg-[#12141a] p-4 transition hover:border-sky-400/40 hover:bg-[#161923]"
+      className="flex h-full flex-col rounded-xl border border-white/10 bg-[#12141a] p-4 transition hover:border-sky-400/40 hover:bg-[#161923]"
     >
       <div className="flex items-center justify-between text-xs font-semibold text-white/40">
         <span>{formatKickoff(game.kickoff)}</span>
@@ -121,13 +121,13 @@ export function MatchRow({ row }: { row: BoardGame }) {
       </div>
 
       {row.top_trends.length > 0 && (
-        <div className="mt-2.5 flex flex-col gap-1.5 border-t border-white/5 pt-2.5 sm:flex-row sm:flex-wrap sm:gap-x-5 sm:gap-y-1.5">
+        <div className="mt-2.5 flex flex-col gap-1.5 border-t border-white/5 pt-2.5">
           {row.top_trends.map((trend, i) => (
             <div key={i} className="flex items-center gap-1.5 text-xs">
               <span className="text-sky-400">↗</span>
               <span className="font-semibold text-white/80">{trend.player_name}</span>
               <span className="text-white/50">{formatMarketTrendLine(trend)}</span>
-              <span className="font-semibold text-emerald-400">
+              <span className={`font-semibold ${pctColorClass(trend.hit_rate * 100)}`}>
                 {trend.hits}/{trend.games}
               </span>
             </div>

@@ -49,24 +49,22 @@ export function MatchupComparisonCard({
       </div>
       <div>
         {rows.map((row) => (
-          <div key={row.label} className="relative flex items-center border-b border-white/5 px-4 py-4 last:border-0">
-            <span
-              className={`absolute left-0 top-2 bottom-2 w-1 rounded-r ${row.leader === "away" ? "bg-sky-400" : "opacity-0"}`}
-            />
+          <div key={row.label} className="flex items-center border-b border-white/5 px-4 py-4 last:border-0">
             <div className="flex-1 text-center">
-              <div className="text-xl font-bold text-white">{formatValue(row.label, row.away_value)}</div>
+              <div className={`text-xl font-bold ${row.leader === "away" ? "text-emerald-400" : "text-white"}`}>
+                {formatValue(row.label, row.away_value)}
+              </div>
               <div className="text-xs text-white/40">{ordinal(row.away_rank)}</div>
             </div>
             <div className="w-48 shrink-0 text-center text-xs font-semibold uppercase tracking-wide text-white/60">
               {row.label}
             </div>
             <div className="flex-1 text-center">
-              <div className="text-xl font-bold text-white">{formatValue(row.label, row.home_value)}</div>
+              <div className={`text-xl font-bold ${row.leader === "home" ? "text-emerald-400" : "text-white"}`}>
+                {formatValue(row.label, row.home_value)}
+              </div>
               <div className="text-xs text-white/40">{ordinal(row.home_rank)}</div>
             </div>
-            <span
-              className={`absolute right-0 top-2 bottom-2 w-1 rounded-l ${row.leader === "home" ? "bg-sky-400" : "opacity-0"}`}
-            />
           </div>
         ))}
       </div>
