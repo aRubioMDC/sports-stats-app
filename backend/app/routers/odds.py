@@ -1,11 +1,11 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
-from app.core.deps import valid_sport
-from app.core.cache import ttl_cache
-from app.db import get_db
-from app.models import OddsEvent, OddsLine
-from app.schemas import OddsLineOut
+from ..core.deps import valid_sport
+from ..core.cache import ttl_cache
+from ..db import get_db
+from ..models import OddsEvent, OddsLine
+from ..schemas import OddsLineOut
 
 router = APIRouter(prefix="/{sport}/odds", tags=["odds"])
 

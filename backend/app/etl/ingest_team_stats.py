@@ -7,10 +7,10 @@ import nflreadpy as nfl
 import pandas as pd
 from sqlalchemy.orm import Session
 
-from app.config import settings
-from app.db import SessionLocal
-from app.etl.stat_window import get_stat_window
-from app.models import Game, Team, TeamSeasonStats
+from ..config import settings
+from ..db import SessionLocal
+from .stat_window import get_stat_window
+from ..models import Game, Team, TeamSeasonStats
 
 STAT_FIELD_TO_RANK_FIELD = {
     "points_per_game": "points_per_game_rank",

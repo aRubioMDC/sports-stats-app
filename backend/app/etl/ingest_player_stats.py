@@ -9,8 +9,8 @@ import nflreadpy as nfl
 import pandas as pd
 from sqlalchemy.orm import Session
 
-from app.db import SessionLocal
-from app.models import Game, Player, PlayerWeeklyStat, Team
+from ..db import SessionLocal
+from ..models import Game, Player, PlayerWeeklyStat, Team
 
 
 def ingest_player_stats(seasons: list[int]) -> None:

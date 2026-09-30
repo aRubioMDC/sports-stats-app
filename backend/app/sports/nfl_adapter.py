@@ -6,10 +6,10 @@ exists — see the multi-sport ADR discussion for why premature splitting is def
 
 import nflreadpy as nfl_data
 
-from app.core.cache import ttl_cache
-from app.etl.compute_trends import DEFAULT_THRESHOLDS, STAT_NAMES
-from app.etl.ingest_schedules import ingest_schedules
-from app.etl.run_all import run_all
+from ..core.cache import ttl_cache
+from ..etl.compute_trends import STAT_NAMES
+from ..etl.ingest_schedules import ingest_schedules
+from ..etl.run_all import run_all
 
 STAT_ROW_DEFS: list[tuple[str, str, str]] = [
     ("Points Per Game", "points_per_game", "points_per_game_rank"),
@@ -56,7 +56,9 @@ class NflAdapter:
         return STAT_NAMES
 
     def trend_thresholds(self) -> dict[str, list[float]]:
-        return DEFAULT_THRESHOLDS
+        # Thresholds are computed dynamically per-player now (see
+        # compute_trends._fair_threshold) rather than from a static default set.
+        return {}
 
 
 NFL_ADAPTER = NflAdapter()

@@ -5,8 +5,8 @@ from datetime import datetime
 import nflreadpy as nfl
 from sqlalchemy.orm import Session
 
-from app.db import SessionLocal
-from app.models import Game, Team
+from ..db import SessionLocal
+from ..models import Game, Team
 
 
 def upsert_teams(db: Session) -> dict[str, int]:

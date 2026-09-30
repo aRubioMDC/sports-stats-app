@@ -1,10 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
-from app.core.deps import valid_sport
-from app.db import get_db
-from app.models import Player, PlayerTrendSignal
-from app.schemas import PlayerTrendOut, TrendSignalOut
+from ..core.deps import valid_sport
+from ..db import get_db
+from ..models import Player, PlayerTrendSignal
+from ..schemas import PlayerTrendOut, TrendSignalOut
 
 router = APIRouter(prefix="/{sport}/players", tags=["players"])
 

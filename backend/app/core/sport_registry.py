@@ -1,7 +1,7 @@
 """Registry of active sport adapters, keyed by URL/DB slug."""
 
-from app.core.sport_adapter import SportAdapter
-from app.sports.nfl_adapter import NFL_ADAPTER
+from .sport_adapter import SportAdapter
+from ..sports.nfl_adapter import NFL_ADAPTER
 
 SPORTS: dict[str, SportAdapter] = {
     "nfl": NFL_ADAPTER,

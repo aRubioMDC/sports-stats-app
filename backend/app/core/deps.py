@@ -1,6 +1,6 @@
 from fastapi import HTTPException, Path
 
-from app.core.sport_registry import SPORTS
+from .sport_registry import SPORTS
 
 
 def valid_sport(sport: str = Path(...)) -> str:

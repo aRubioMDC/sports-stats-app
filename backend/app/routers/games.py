@@ -1,10 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
-from app.core.deps import valid_sport
-from app.db import get_db
-from app.models import Game
-from app.schemas import GameOut
+from ..core.deps import valid_sport
+from ..db import get_db
+from ..models import Game
+from ..schemas import GameOut
 
 router = APIRouter(prefix="/{sport}/games", tags=["games"])
 

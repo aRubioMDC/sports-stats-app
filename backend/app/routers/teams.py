@@ -1,10 +1,10 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
-from app.core.deps import valid_sport
-from app.db import get_db
-from app.models import Team
-from app.schemas import TeamOut
+from ..core.deps import valid_sport
+from ..db import get_db
+from ..models import Team
+from ..schemas import TeamOut
 
 router = APIRouter(prefix="/{sport}/teams", tags=["teams"])
 

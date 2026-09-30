@@ -10,11 +10,11 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
-from app.core.cache import clear_cache
-from app.core.sport_registry import SPORTS
-from app.db import SessionLocal
-from app.models import AnalyticsEvent
-from app.routers import board, games, matchup, odds, players, teams, trends
+from .core.cache import clear_cache
+from .core.sport_registry import SPORTS
+from .db import SessionLocal
+from .models import AnalyticsEvent
+from .routers import board, games, matchup, odds, players, teams, trends
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 logger = logging.getLogger("sportstats")
