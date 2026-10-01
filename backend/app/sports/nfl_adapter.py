@@ -7,6 +7,7 @@ exists — see the multi-sport ADR discussion for why premature splitting is def
 import nflreadpy as nfl_data
 
 from ..core.cache import ttl_cache
+from ..core.constants import CACHE_TTL_LONG
 from ..etl.compute_trends import STAT_NAMES
 from ..etl.ingest_schedules import ingest_schedules
 from ..etl.run_all import run_all
@@ -21,12 +22,12 @@ STAT_ROW_DEFS: list[tuple[str, str, str]] = [
 ]
 
 
-@ttl_cache(seconds=3600)
+@ttl_cache(seconds=CACHE_TTL_LONG)
 def _cached_current_season() -> int:
     return nfl_data.get_current_season()
 
 
-@ttl_cache(seconds=3600)
+@ttl_cache(seconds=CACHE_TTL_LONG)
 def _cached_current_week() -> int:
     return nfl_data.get_current_week()
 
@@ -34,6 +35,7 @@ def _cached_current_week() -> int:
 class NflAdapter:
     slug = "nfl"
     display_name = "NFL"
+    period_unit = "week"
 
     def current_season(self) -> int:
         # nflreadpy tracks the real current NFL season/week — never hardcode this.
@@ -42,6 +44,12 @@ class NflAdapter:
 
     def current_week(self) -> int:
         return _cached_current_week()
+
+    def previous_season(self, season: int) -> int:
+        return season - 1
+
+    def period_anchor_date(self) -> str | None:
+        return None  # NFL weeks are real discrete weeks, not date offsets
 
     def ingest_all(self) -> None:
         run_all()
@@ -59,6 +67,12 @@ class NflAdapter:
         # Thresholds are computed dynamically per-player now (see
         # compute_trends._fair_threshold) rather than from a static default set.
         return {}
+
+    def market_thresholds(self) -> dict[str, list[float]]:
+        return {
+            "team_points": [27.5, 23.5, 20.5, 17.5],
+            "game_total_points": [50.5, 44.5, 40.5, 36.5],
+        }
 
 
 NFL_ADAPTER = NflAdapter()

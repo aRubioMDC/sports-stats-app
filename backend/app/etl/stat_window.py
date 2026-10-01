@@ -19,13 +19,13 @@ class StatWindow:
     seasons_included: list[int]
 
 
-def get_stat_window(current_season: int, weeks_played_current_season: int) -> StatWindow:
+def get_stat_window(current_season: int, weeks_played_current_season: int, previous_season: int) -> StatWindow:
     if weeks_played_current_season <= settings.small_sample_week_threshold:
         return StatWindow(
             season=current_season,
             weeks_played=weeks_played_current_season,
             window_mode="blended",
-            seasons_included=[current_season - 1, current_season],
+            seasons_included=[previous_season, current_season],
         )
     return StatWindow(
         season=current_season,

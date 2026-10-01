@@ -12,25 +12,23 @@ from sqlalchemy.orm import Session, joinedload
 
 from ..core.deps import valid_sport
 from ..core.cache import ttl_cache
+from ..core.constants import CACHE_TTL_MEDIUM, CACHE_TTL_SHORT, MIN_GAMES_FOR_TREND
+from ..core.query_helpers import filter_by_sport_week, find_best_threshold, game_result_for_team, game_to_schema
+from ..core.repositories import GameRepository
 from ..core.sport_registry import get_sport
 from ..core.stats_math import wilson_interval
 from ..db import get_db
 from ..models import Game, Player, PlayerTrendSignal, PlayerWeeklyStat, Team, TeamSeasonStats
-from ..schemas import BoardGameOut, CheatsheetRowOut, GameOut, ParlayOut, TeamGeneralStats, TeamOut
+from ..schemas import BoardGameOut, CheatsheetRowOut, ParlayOut, TeamGeneralStats, TeamOut
 
 router = APIRouter(prefix="/{sport}", tags=["board"])
-
-# Self-chosen round-number thresholds for team scoring trends, same convention as
-# DEFAULT_THRESHOLDS for player props — not tied to any real sportsbook line.
-TEAM_POINT_THRESHOLDS = [27.5, 23.5, 20.5, 17.5]
-GAME_TOTAL_THRESHOLDS = [50.5, 44.5, 40.5, 36.5]
 
 
 def _window_seasons(sport: str) -> list[int]:
     """The only seasons that should ever feed live trend queries — guards against
     orphaned/stale PlayerWeeklyStat rows from past seasons silently inflating counts."""
     season = get_sport(sport).current_season()
-    return [season - 1, season]
+    return [get_sport(sport).previous_season(season), season]
 
 
 def _active_team_ids(db: Session, sport: str) -> set[int]:
@@ -46,25 +44,7 @@ def _active_team_ids(db: Session, sport: str) -> set[int]:
 
 
 def _team_form(db: Session, sport: str, team_id: int, limit: int = 5) -> list[str]:
-    games = (
-        db.query(Game)
-        .filter(
-            Game.sport == sport,
-            Game.status == "final",
-            (Game.home_team_id == team_id) | (Game.away_team_id == team_id),
-        )
-        .order_by(Game.season.desc(), Game.week.desc())
-        .limit(limit)
-        .all()
-    )
-    form: list[str] = []
-    for g in games:
-        if g.home_team_id == team_id:
-            team_score, opp_score = g.home_score or 0, g.away_score or 0
-        else:
-            team_score, opp_score = g.away_score or 0, g.home_score or 0
-        form.append("W" if team_score > opp_score else "L" if team_score < opp_score else "T")
-    return form
+    return GameRepository(db=db, sport=sport).recent_team_form(team_id, limit=limit)
 
 
 def _to_row(signal: PlayerTrendSignal) -> CheatsheetRowOut:
@@ -86,7 +66,7 @@ def _to_row(signal: PlayerTrendSignal) -> CheatsheetRowOut:
 
 
 def _top_trends_for_teams(
-    db: Session, sport: str, team_ids: set[int], limit: int, min_games: int = 3
+    db: Session, sport: str, team_ids: set[int], limit: int, min_games: int = MIN_GAMES_FOR_TREND
 ) -> list[CheatsheetRowOut]:
     signals = (
         db.query(PlayerTrendSignal)
@@ -117,7 +97,7 @@ def _moneyline_trend(db: Session, sport: str, game: Game) -> CheatsheetRowOut | 
         (game.away_team_id, game.away_team.abbreviation),
     ):
         form = _team_form(db, sport, team_id, limit=5)
-        if len(form) < 3:
+        if len(form) < MIN_GAMES_FOR_TREND:
             continue
         wins = form.count("W")
         candidates.append((wins / len(form), wins, len(form), abbr))
@@ -141,27 +121,11 @@ def _moneyline_trend(db: Session, sport: str, game: Game) -> CheatsheetRowOut | 
 
 def _team_points_trend(db: Session, sport: str, team_id: int, abbr: str) -> CheatsheetRowOut | None:
     """Best-fitting team-total-points threshold over that team's last 5 games."""
-    games = (
-        db.query(Game)
-        .filter(
-            Game.sport == sport,
-            Game.status == "final",
-            (Game.home_team_id == team_id) | (Game.away_team_id == team_id),
-        )
-        .order_by(Game.season.desc(), Game.week.desc())
-        .limit(5)
-        .all()
-    )
-    scores = [(g.home_score if g.home_team_id == team_id else g.away_score) for g in games]
-    scores = [s for s in scores if s is not None]
-    if len(scores) < 3:
+    scores = GameRepository(db=db, sport=sport).recent_team_scores(team_id, limit=5)
+    thresholds = GameRepository(db=db, sport=sport).team_market_thresholds()["team_points"]
+    best = find_best_threshold(scores, thresholds, MIN_GAMES_FOR_TREND)
+    if best is None:
         return None
-    best: tuple[float, int, float] | None = None
-    for threshold in TEAM_POINT_THRESHOLDS:
-        hits = sum(1 for s in scores if s > threshold)
-        rate = hits / len(scores)
-        if best is None or rate > best[0]:
-            best = (rate, hits, threshold)
     rate, hits, threshold = best
     ci_low, ci_high = wilson_interval(hits, len(scores))
     return CheatsheetRowOut(
@@ -180,30 +144,15 @@ def _team_points_trend(db: Session, sport: str, team_id: int, abbr: str) -> Chea
 
 def _game_total_trend(db: Session, sport: str, game: Game) -> CheatsheetRowOut | None:
     """Combined-score (both teams) over/under trend, pooling each team's last 5 games."""
-    combined_scores: list[int] = []
-    for team_id in (game.home_team_id, game.away_team_id):
-        recent = (
-            db.query(Game)
-            .filter(
-                Game.sport == sport,
-                Game.status == "final",
-                (Game.home_team_id == team_id) | (Game.away_team_id == team_id),
-            )
-            .order_by(Game.season.desc(), Game.week.desc())
-            .limit(5)
-            .all()
-        )
-        for g in recent:
-            if g.home_score is not None and g.away_score is not None:
-                combined_scores.append(g.home_score + g.away_score)
-    if len(combined_scores) < 3:
+    combined_scores = GameRepository(db=db, sport=sport).recent_game_total_scores(
+        game.home_team_id,
+        game.away_team_id,
+        limit=5,
+    )
+    thresholds = GameRepository(db=db, sport=sport).game_market_thresholds()["game_total_points"]
+    best = find_best_threshold(combined_scores, thresholds, MIN_GAMES_FOR_TREND)
+    if best is None:
         return None
-    best: tuple[float, int, float] | None = None
-    for threshold in GAME_TOTAL_THRESHOLDS:
-        hits = sum(1 for s in combined_scores if s > threshold)
-        rate = hits / len(combined_scores)
-        if best is None or rate > best[0]:
-            best = (rate, hits, threshold)
     rate, hits, threshold = best
     ci_low, ci_high = wilson_interval(hits, len(combined_scores))
     return CheatsheetRowOut(
@@ -244,15 +193,10 @@ def _game_market_trends(db: Session, sport: str, game: Game) -> list[CheatsheetR
 
 
 @router.get("/board", response_model=list[BoardGameOut])
-@ttl_cache(seconds=60)
+@ttl_cache(seconds=CACHE_TTL_SHORT)
 def get_board(season: int, week: int, sport: str = Depends(valid_sport), db: Session = Depends(get_db)):
     # Batch query all games with season/week
-    games = (
-        db.query(Game)
-        .filter(Game.sport == sport, Game.season == season, Game.week == week)
-        .order_by(Game.kickoff)
-        .all()
-    )
+    games = filter_by_sport_week(db.query(Game), sport, season, week).order_by(Game.kickoff).all()
 
     team_ids = {tid for g in games for tid in (g.home_team_id, g.away_team_id)}
     
@@ -309,17 +253,7 @@ def get_board(season: int, week: int, sport: str = Depends(valid_sport), db: Ses
         away_form = form_cache.get(g.away_team_id, [])
         rows.append(
             BoardGameOut(
-                game=GameOut(
-                    id=g.id,
-                    season=g.season,
-                    week=g.week,
-                    kickoff=g.kickoff.isoformat() if g.kickoff else None,
-                    home_team=g.home_team,
-                    away_team=g.away_team,
-                    home_score=g.home_score,
-                    away_score=g.away_score,
-                    status=g.status,
-                ),
+                game=game_to_schema(g),
                 home_form=home_form,
                 away_form=away_form,
                 home_stats=_stats_out(g.home_team_id),
@@ -331,7 +265,7 @@ def get_board(season: int, week: int, sport: str = Depends(valid_sport), db: Ses
 
 
 @router.get("/board/byes", response_model=list[TeamOut])
-@ttl_cache(seconds=300)
+@ttl_cache(seconds=CACHE_TTL_MEDIUM)
 def get_bye_teams(season: int, week: int, sport: str = Depends(valid_sport), db: Session = Depends(get_db)):
     """Real teams not playing this week — filtered to teams that actually appear
     somewhere in this season's real schedule, so stale relocated-franchise rows
@@ -351,7 +285,7 @@ def get_bye_teams(season: int, week: int, sport: str = Depends(valid_sport), db:
 
 
 @router.get("/games/{game_id}/parlays", response_model=list[ParlayOut])
-@ttl_cache(seconds=60)
+@ttl_cache(seconds=CACHE_TTL_SHORT)
 def get_parlays(game_id: int, sport: str = Depends(valid_sport), db: Session = Depends(get_db)):
     """Several 2-3 leg parlay slates for this game, like Linemate's "Parlays for X @ Y"
     carousel — each slate is a distinct group of the game's best hit-rate legs."""

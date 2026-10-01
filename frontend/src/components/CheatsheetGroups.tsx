@@ -2,6 +2,10 @@ import { useState } from "react";
 import type { CheatsheetRow } from "../api";
 import { formatTrendLine } from "../lib/statLabels";
 
+// Columns-per-page in the carousel below — kept at top-of-file for visibility
+// since it's referenced before the component definition that uses it.
+const PAGE_SIZE = 3;
+
 interface Category {
   icon: string;
   title: string;
@@ -135,6 +139,4 @@ export function CheatsheetGroups({
     </div>
   );
 }
-
-const PAGE_SIZE = 3;
 

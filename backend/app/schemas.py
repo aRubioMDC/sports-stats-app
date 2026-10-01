@@ -41,6 +41,7 @@ class StatRow(BaseModel):
 class HeadToHeadResult(BaseModel):
     season: int
     week: int
+    kickoff: str | None = None  # real ISO datetime — lets day-based sports show an actual date, not "Wk N"
     home_team: str
     away_team: str
     home_score: int
@@ -87,6 +88,7 @@ class StandingsRowOut(BaseModel):
 class RecentGameOut(BaseModel):
     season: int
     week: int
+    kickoff: str | None = None  # real ISO datetime — lets day-based sports show an actual date, not "Wk N"
     opponent: str
     opponent_logo_url: str
     is_home: bool

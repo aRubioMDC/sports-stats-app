@@ -200,3 +200,28 @@ class AnalyticsEvent(Base):
     sport: Mapped[str | None] = mapped_column(String(16), nullable=True)
     metadata_json: Mapped[str | None] = mapped_column(String(512), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, index=True)
+
+
+class HockeyPlayerGameStat(Base):
+    """Real per-game skater box score line from the NHL API — kept as its own table
+    since none of these stat columns overlap with PlayerWeeklyStat's football stats."""
+
+    __tablename__ = "hockey_player_game_stats"
+    __table_args__ = (UniqueConstraint("player_id", "nhl_game_id"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    player_id: Mapped[int] = mapped_column(ForeignKey("players.id"), index=True)
+    game_id: Mapped[int | None] = mapped_column(ForeignKey("games.id"), nullable=True)
+    nhl_game_id: Mapped[int] = mapped_column(Integer, index=True)  # real NHL API game id, for de-dup
+    season: Mapped[int] = mapped_column(Integer, index=True)
+    game_date: Mapped[str] = mapped_column(String(16))  # ISO date (YYYY-MM-DD) — real chronological order
+    opponent_team_id: Mapped[int | None] = mapped_column(ForeignKey("teams.id"), nullable=True)
+    is_home: Mapped[bool] = mapped_column(Boolean, default=False)
+
+    goals: Mapped[float] = mapped_column(Float, default=0)
+    assists: Mapped[float] = mapped_column(Float, default=0)
+    points: Mapped[float] = mapped_column(Float, default=0)
+    shots_on_goal: Mapped[float] = mapped_column(Float, default=0)
+
+    player: Mapped["Player"] = relationship()
+

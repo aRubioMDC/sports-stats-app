@@ -76,7 +76,7 @@ def ingest_team_stats(current_season: int) -> None:
             )
 
         windows = {
-            abbr: get_stat_window(current_season, weeks_played_by_team.get(abbr, 0))
+            abbr: get_stat_window(current_season, weeks_played_by_team.get(abbr, 0), current_season - 1)
             for abbr in teams
         }
         seasons_needed = sorted({s for w in windows.values() for s in w.seasons_included})

@@ -111,7 +111,7 @@ def compute_trends(current_season: int) -> None:
         for player_index, player in enumerate(players):
             all_logs = logs_by_player.get(player.id, [])
             weeks_played = sum(1 for g in all_logs if g.season == current_season)
-            window = get_stat_window(current_season, weeks_played)
+            window = get_stat_window(current_season, weeks_played, current_season - 1)
             game_logs = [g for g in all_logs if g.season in window.seasons_included]
             if not game_logs:
                 continue

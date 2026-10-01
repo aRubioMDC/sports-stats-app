@@ -1,83 +1,21 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { api, useConfig, useTeams, useTrendGroups } from "../api";
+import { api, getCurrentSport, useConfig, useTeams, useTrendGroups } from "../api";
 import type { CheatsheetRow } from "../api";
 import { CheatsheetRowCard } from "../components/CheatsheetRowCard";
 import { STAT_LABELS } from "../lib/statLabels";
-
-// Real TrendGroups categories computed server-side in get_trend_groups()
-// (backend/app/routers/trends.py) — "all" is a client-side dedup across them,
-// since the buckets are not mutually exclusive (a row can be both
-// recent_form and versus_opponent, for example).
-type CategoryKey =
-  | "all"
-  | "recent_form"
-  | "versus_opponent"
-  | "home_away_splits"
-  | "opponent_rank"
-  | "injury_impact"
-  | "alternate_lines"
-  | "unders_only"
-  | "team_form";
-
-const CATEGORIES: Array<{ key: CategoryKey; label: string; icon: string; description: string }> = [
-  { key: "all", label: "All", icon: "📋", description: "Every real signal that qualifies, deduplicated across categories." },
-  { key: "recent_form", label: "Recent Form", icon: "⚡", description: "Hit rate ≥75% over recent games." },
-  { key: "versus_opponent", label: "Versus Opponent", icon: "🛡️", description: "Real head-to-head history vs. the upcoming opponent confirms the pick." },
-  { key: "home_away_splits", label: "Home/Away Splits", icon: "📍", description: "Real home/away split confirms the pick." },
-  { key: "opponent_rank", label: "Opponent Rank", icon: "🏆", description: "Upcoming opponent's real defensive rank is a genuine matchup edge." },
-  { key: "injury_impact", label: "Injury Impact", icon: "🩹", description: "Real teammate-absence data confirms the pick." },
-  { key: "alternate_lines", label: "Alternate Lines", icon: "↗️", description: "Other qualifying over/under signals." },
-  { key: "unders_only", label: "Unders Only", icon: "🔻", description: "Under-specific signals." },
-  { key: "team_form", label: "Team Form", icon: "👥", description: "Additional qualifying signals." },
-];
-
-type SortKey = "hit_rate" | "games" | "edge" | "kelly";
-
-const SORT_OPTIONS: Array<{ key: SortKey; label: string }> = [
-  { key: "hit_rate", label: "Hit Rate" },
-  { key: "games", label: "Sample Size" },
-  { key: "edge", label: "Market Edge" },
-  { key: "kelly", label: "Kelly Fraction" },
-];
-
-function sortValue(row: CheatsheetRow, key: SortKey): number {
-  switch (key) {
-    case "hit_rate":
-      return row.hit_rate;
-    case "games":
-      return row.games;
-    case "edge":
-      return row.edge ?? -Infinity;
-    case "kelly":
-      return row.kelly_fraction ?? -Infinity;
-  }
-}
-
-function sortRows(rows: CheatsheetRow[], key: SortKey): CheatsheetRow[] {
-  return [...rows].sort((a, b) => sortValue(b, key) - sortValue(a, key));
-}
-
-// A range input's fill must be relative to its own min-max span, not the raw
-// value — a slider with min=60 sitting at value=60 is at the LEFT edge (0%
-// of the track), not 60% of it.
-function sliderFillPct(value: number, min: number, max: number): number {
-  if (max <= min) return 0;
-  return Math.round(((value - min) / (max - min)) * 100);
-}
-
-// Stable identity for a signal so the same real pick isn't double-counted
-// across TrendGroups categories (buckets are not mutually exclusive).
-function rowKey(row: CheatsheetRow): string {
-  return `${row.player_name}|${row.stat_name}|${row.threshold}|${row.direction}|${row.game_id ?? "none"}`;
-}
-
-const ALL_STAT_OPTION = "all";
-const ALL_TEAM_OPTION = "all";
-// The backend baseline for every TrendGroups category is 60% hit rate (see
-// min_hit_rate=0.6 in get_trend_groups) — the slider narrows further from
-// there, it never reveals rows the API withheld below that floor.
-const MIN_HIT_RATE_FLOOR = 0.6;
+import { useTeamLogos } from "../lib/useTeamLogos";
+import {
+  ALL_STAT_OPTION,
+  ALL_TEAM_OPTION,
+  CATEGORIES,
+  MIN_HIT_RATE_FLOOR,
+  rowKey,
+  sliderFillPct,
+  SORT_OPTIONS,
+  sortRows,
+} from "../lib/cheatsheet-config";
+import type { CategoryKey, SortKey } from "../lib/cheatsheet-config";
 
 export function Cheatsheet() {
   const [category, setCategory] = useState<CategoryKey>("all");
@@ -97,16 +35,7 @@ export function Cheatsheet() {
   const trendGroups = trendGroupsQuery.data ?? null;
   const loading = trendGroupsQuery.isLoading || teamsQuery.isLoading;
 
-  const teamLogos = useMemo(() => {
-    if (!teamsQuery.data) return {};
-    return teamsQuery.data.reduce(
-      (acc, team) => {
-        acc[team.abbreviation] = { logoUrl: team.logo_url, primaryColor: team.primary_color };
-        return acc;
-      },
-      {} as Record<string, { logoUrl: string; primaryColor: string }>
-    );
-  }, [teamsQuery.data]);
+  const teamLogos = useTeamLogos();
 
   useEffect(() => {
     api.trackEvent("page_view_cheatsheet");
@@ -208,7 +137,7 @@ export function Cheatsheet() {
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="e.g. Mahomes"
+              placeholder={getCurrentSport() === "nhl" ? "e.g. McDavid" : "e.g. Mahomes"}
               className="mt-1 block w-full rounded-lg border border-white/10 bg-[#0b0d12] px-3 py-2 text-sm text-white placeholder:text-white/30"
             />
           </label>

@@ -17,9 +17,9 @@ from .models import AnalyticsEvent
 from .routers import board, games, matchup, odds, players, teams, trends
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
-logger = logging.getLogger("sportstats")
+logger = logging.getLogger("hitrate")
 
-app = FastAPI(title="Sports Stats & Trends API")
+app = FastAPI(title="HitRate API")
 
 # Enable CORS for frontend development
 app.add_middleware(
@@ -101,6 +101,8 @@ def get_sport_config(sport: str):
         "current_season": adapter.current_season(),
         "current_week": adapter.current_week(),
         "last_updated": last_updated.isoformat() if last_updated else None,
+        "period_unit": adapter.period_unit,
+        "period_anchor_date": adapter.period_anchor_date(),
     }
 
 

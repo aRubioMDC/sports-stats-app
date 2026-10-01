@@ -1,11 +1,14 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
-import { api, useBoard, useCheatsheet, useParlays, useTeams } from "../api";
-import type { MatchupContext } from "../api";
+import { useBoard, useCheatsheet, useConfig, useMatchup, useParlays } from "../api";
 import { MatchupComparisonCard } from "../components/MatchupComparisonCard";
 import { HeadToHeadTable } from "../components/HeadToHeadTable";
 import { CheatsheetRowCard } from "../components/CheatsheetRowCard";
+import { ProbBar } from "../components/ProbBar";
+import { TeamSnapshotCard } from "../components/TeamSnapshotCard";
 import { formatMarketTrendLine, formatTrendLine, pctColorClass } from "../lib/statLabels";
+import { seasonStartYear } from "../lib/period";
+import { useTeamLogos } from "../lib/useTeamLogos";
 
 type Tab = "overview" | "trends";
 
@@ -13,111 +16,23 @@ function formatPrice(price: number): string {
   return price > 0 ? `+${price}` : `${price}`;
 }
 
-/** Thin de-vigged-probability bar — real consensus market probability, never a model guess. */
-function ProbBar({ label, pct, color }: { label: string; pct: number; color: string }) {
-  return (
-    <div className="mb-1.5">
-      <div className="mb-0.5 flex items-center justify-between text-xs">
-        <span className="text-white/70">{label}</span>
-        <span className="font-semibold text-white">{Math.round(pct * 100)}%</span>
-      </div>
-      <div className="h-1.5 w-full overflow-hidden rounded-full bg-white/10">
-        <div className="h-full rounded-full" style={{ width: `${pct * 100}%`, backgroundColor: color }} />
-      </div>
-    </div>
-  );
-}
-
-function FormDots({ form }: { form: string[] }) {
-  if (form.length === 0) return <span className="text-xs text-white/30">—</span>;
-  return (
-    <div className="flex gap-1">
-      {form.map((result, i) => (
-        <span
-          key={i}
-          title={result === "W" ? "Win" : result === "L" ? "Loss" : "Tie"}
-          className={`h-2.5 w-2.5 rounded-full ${
-            result === "W" ? "bg-emerald-400" : result === "L" ? "bg-red-500" : "bg-white/30"
-          }`}
-        />
-      ))}
-    </div>
-  );
-}
-
-/** NFL.com-style "at a glance" team card: logo, recent form, PPG/YPG with league rank. */
-function TeamSnapshotCard({
-  abbreviation,
-  logoUrl,
-  primaryColor,
-  form,
-  ppg,
-  ppgRank,
-  ypg,
-  ypgRank,
-}: {
-  abbreviation: string;
-  logoUrl: string;
-  primaryColor: string;
-  form: string[];
-  ppg: number | undefined;
-  ppgRank: number | undefined;
-  ypg: number | undefined;
-  ypgRank: number | undefined;
-}) {
-  return (
-    <div className="flex-1 rounded-xl border border-white/10 bg-[#12141a] p-4">
-      <div className="mb-3 flex items-center gap-2.5">
-        {logoUrl ? (
-          <img src={logoUrl} alt={abbreviation} className="h-9 w-9 shrink-0 object-contain" />
-        ) : (
-          <span className="h-9 w-9 shrink-0 rounded-full" style={{ backgroundColor: primaryColor }} />
-        )}
-        <div>
-          <div className="text-base font-bold text-white">{abbreviation}</div>
-          <FormDots form={form} />
-        </div>
-      </div>
-      <div className="grid grid-cols-2 gap-3 text-center">
-        <div>
-          <div className="text-lg font-black text-white">{ppg ?? "—"}</div>
-          <div className="text-[10px] uppercase tracking-wide text-white/40">
-            PPG {ppgRank != null && `· #${ppgRank}`}
-          </div>
-        </div>
-        <div>
-          <div className="text-lg font-black text-white">{ypg ?? "—"}</div>
-          <div className="text-[10px] uppercase tracking-wide text-white/40">
-            YPG {ypgRank != null && `· #${ypgRank}`}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 export function GameDetail() {
   const { gameId } = useParams<{ gameId: string }>();
   const [searchParams, setSearchParams] = useSearchParams();
   const tab: Tab = searchParams.get("tab") === "trends" ? "trends" : "overview";
 
-  const [context, setContext] = useState<MatchupContext | null>(null);
-  const [error, setError] = useState<string | null>(null);
   const [recentGamesTeam, setRecentGamesTeam] = useState<"home" | "away">("home");
 
-  useEffect(() => {
-    if (!gameId) return;
-    api
-      .getMatchup(Number(gameId))
-      .then(setContext)
-      .catch(() => setError("Could not load matchup context."));
-  }, [gameId]);
+  const matchupQuery = useMatchup(gameId ? Number(gameId) : null);
+  const context = matchupQuery.data ?? null;
+  const error = matchupQuery.isError ? "Could not load matchup context." : null;
 
   const game = context?.game ?? null;
   const boardQuery = useBoard(game?.season ?? null, game?.week ?? null);
   const cheatsheetQuery = useCheatsheet(0.5, 3, game?.season, game?.week, undefined, game != null);
   const parlaysQuery = useParlays(gameId ? Number(gameId) : null, tab === "trends");
-  const teamsQuery = useTeams();
+  const configQuery = useConfig();
+  const isDayBased = configQuery.data?.period_unit === "day";
 
   const boardRow = useMemo(
     () => boardQuery.data?.find((row) => row.game.id === Number(gameId)) ?? null,
@@ -129,16 +44,7 @@ export function GameDetail() {
     [cheatsheetQuery.data, gameId]
   );
 
-  const teamLogos = useMemo(() => {
-    if (!teamsQuery.data) return {};
-    return teamsQuery.data.reduce(
-      (acc, team) => {
-        acc[team.abbreviation] = { logoUrl: team.logo_url, primaryColor: team.primary_color };
-        return acc;
-      },
-      {} as Record<string, { logoUrl: string; primaryColor: string }>
-    );
-  }, [teamsQuery.data]);
+  const teamLogos = useTeamLogos();
 
   const setTab = (next: Tab) => setSearchParams((prev) => {
     const params = new URLSearchParams(prev);
@@ -203,6 +109,7 @@ export function GameDetail() {
                 ppgRank={boardRow.away_stats?.points_per_game_rank}
                 ypg={boardRow.away_stats?.yards_per_game}
                 ypgRank={boardRow.away_stats?.yards_per_game_rank}
+                isDayBased={isDayBased}
               />
               <TeamSnapshotCard
                 abbreviation={game!.home_team.abbreviation}
@@ -213,6 +120,7 @@ export function GameDetail() {
                 ppgRank={boardRow.home_stats?.points_per_game_rank}
                 ypg={boardRow.home_stats?.yards_per_game}
                 ypgRank={boardRow.home_stats?.yards_per_game_rank}
+                isDayBased={isDayBased}
               />
             </div>
           )}
@@ -394,7 +302,11 @@ export function GameDetail() {
                 {(recentGamesTeam === "home" ? context.home_recent_games : context.away_recent_games).map((g, i) => (
                   <div key={i} className="flex items-center justify-between rounded-lg bg-white/5 px-3 py-2 text-sm">
                     <div className="flex items-center gap-2">
-                      <span className="text-xs text-white/40">Wk {g.week}</span>
+                      <span className="text-xs text-white/40">
+                        {isDayBased && g.kickoff
+                          ? new Date(g.kickoff).toLocaleDateString(undefined, { month: "short", day: "numeric" })
+                          : `Wk ${g.week}`}
+                      </span>
                       <span className="text-white/50">{g.is_home ? "vs" : "@"}</span>
                       {g.opponent_logo_url ? (
                         <img src={g.opponent_logo_url} alt={g.opponent} className="h-5 w-5 object-contain" />
@@ -435,7 +347,13 @@ export function GameDetail() {
                   {head_to_head[0].away_team} @ {head_to_head[0].home_team}
                 </span>
                 <span className="text-white/40">
-                  {head_to_head[0].season} · Wk {head_to_head[0].week}
+                  {isDayBased && head_to_head[0].kickoff
+                    ? new Date(head_to_head[0].kickoff).toLocaleDateString(undefined, {
+                        year: "numeric",
+                        month: "short",
+                        day: "numeric",
+                      })
+                    : `${head_to_head[0].season} · Wk ${head_to_head[0].week}`}
                 </span>
               </div>
               <div className="mt-1 flex items-baseline justify-between">
@@ -444,7 +362,7 @@ export function GameDetail() {
                 </span>
                 <span className="text-xs text-white/40">
                   {(() => {
-                    const seasonsAgo = game!.season - head_to_head[0].season;
+                    const seasonsAgo = seasonStartYear(game!.season) - seasonStartYear(head_to_head[0].season);
                     if (seasonsAgo <= 0) return "This season";
                     if (seasonsAgo === 1) return "Last season";
                     return `${seasonsAgo} seasons ago`;
@@ -508,7 +426,7 @@ export function GameDetail() {
             <div className="lg:col-span-1">
               <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-white/50">Head to Head</h2>
               <div className="rounded-xl border border-white/10 bg-[#12141a] p-4">
-                <HeadToHeadTable results={head_to_head} />
+                <HeadToHeadTable results={head_to_head} isDayBased={isDayBased} />
               </div>
             </div>
           </div>

@@ -1,116 +1,12 @@
 import { Link } from "react-router-dom";
 import type { CheatsheetRow } from "../api";
-import { formatTrendLine, ordinal, STAT_LABELS } from "../lib/statLabels";
+import { formatTrendLine } from "../lib/statLabels";
 import { useBankroll } from "../lib/bankroll";
+import { getSignalBadges } from "../lib/signal-helpers";
 
 interface CheatsheetRowCardProps {
   row: CheatsheetRow;
   teamLogos?: Record<string, { logoUrl: string; primaryColor: string }>;
-}
-
-interface SignalBadge {
-  icon: string;
-  label: string;
-  context: string;
-  percentage: number;
-  valueLabel?: string; // overrides "{percentage}%" (e.g. an ordinal rank like "1st")
-  color: string; // Tailwind class
-  confidenceRange?: string; // shown for small samples, e.g. "95% CI: 39%\u201388%"
-}
-
-// Below this many games, a point-estimate hit rate alone is misleading —
-// pair it with its confidence interval so a 2/3 streak doesn't read the same
-// as a well-supported 16/19.
-const SMALL_SAMPLE_GAMES_THRESHOLD = 8;
-
-/**
- * Generate Linemate-style signal badges for a CheatsheetRow.
- * Shows: recent_form, split, h2h, opponent_rank — but only the contextual ones
- * (split/h2h/opponent_rank) when they actually confirm the pick, since a 0%
- * head-to-head record is evidence *against* the prop, not a supporting signal.
- */
-function getSignalBadges(row: CheatsheetRow): SignalBadge[] {
-  const badges: SignalBadge[] = [];
-
-  // 1. RECENT_FORM (always shown as main signal)
-  const showConfidenceRange =
-    row.games < SMALL_SAMPLE_GAMES_THRESHOLD && row.hit_rate_ci_low != null && row.hit_rate_ci_high != null;
-  badges.push({
-    icon: "🔥",
-    label: "Recent Form",
-    context: `Hit in ${row.hits} of last ${row.games} games`,
-    percentage: Math.round(row.hit_rate * 100),
-    color: "bg-amber-500/20 text-amber-400 border-amber-500/30",
-    confidenceRange: showConfidenceRange
-      ? `95% CI: ${Math.round((row.hit_rate_ci_low ?? 0) * 100)}%–${Math.round((row.hit_rate_ci_high ?? 0) * 100)}%`
-      : undefined,
-  });
-
-  // 2. SPLIT (Home/Away split) — only when it confirms the pick
-  if (row.split_hits != null && row.split_games != null && row.split_games > 0) {
-    const splitPercentage = Math.round((row.split_hits / row.split_games) * 100);
-    if (splitPercentage >= 50) {
-      const splitLabel = row.is_home ? "Home Split" : "Away Split";
-      badges.push({
-        icon: "📍",
-        label: splitLabel,
-        context: `Hit in ${row.split_hits} of last ${row.split_games} ${row.is_home ? "home" : "away"} games`,
-        percentage: splitPercentage,
-        color: "bg-blue-500/20 text-blue-400 border-blue-500/30",
-      });
-    }
-  }
-
-  // 3. H2H (Head-to-Head vs Opponent) — only when it confirms the pick
-  if (row.h2h_hits != null && row.h2h_games != null && row.h2h_games > 0) {
-    const h2hPercentage = Math.round((row.h2h_hits / row.h2h_games) * 100);
-    if (h2hPercentage >= 50) {
-      badges.push({
-        icon: "🎯",
-        label: "vs Opponent",
-        context: `Hit in ${row.h2h_hits} of last ${row.h2h_games} matchups`,
-        percentage: h2hPercentage,
-        color: "bg-purple-500/20 text-purple-400 border-purple-500/30",
-      });
-    }
-  }
-
-  // 4. INJURY_IMPACT — real teammate-absence data, only when it confirms the pick
-  if (row.without_player && row.without_player_hits != null && row.without_player_games) {
-    const injuryPercentage = Math.round((row.without_player_hits / row.without_player_games) * 100);
-    if (injuryPercentage >= 50) {
-      badges.push({
-        icon: "🩹",
-        label: "Injury Impact",
-        context: `Hit in ${row.without_player_hits} of last ${row.without_player_games} games without ${row.without_player}`,
-        percentage: injuryPercentage,
-        color: "bg-red-500/20 text-red-400 border-red-500/30",
-      });
-    }
-  }
-
-  // 5. OPPONENT_RANK — direction-aware, only when it's a genuine matchup edge
-  // (weak defense for an over, stingy defense for an under).
-  if (row.opponent_rank != null && row.opponent_team_count) {
-    const isOver = row.direction !== "under";
-    const midpoint = row.opponent_team_count / 2;
-    const isEdge = isOver ? row.opponent_rank > midpoint : row.opponent_rank <= midpoint;
-    if (isEdge) {
-      const edgeRank = isOver ? row.opponent_team_count - row.opponent_rank + 1 : row.opponent_rank;
-      const statLabel = STAT_LABELS[row.stat_name] ?? row.stat_name;
-      const opponentAbbr = row.opponent_team ?? "Opponent";
-      badges.push({
-        icon: "🏆",
-        label: "Opponent Rank",
-        context: `${opponentAbbr} is a good ${statLabel} matchup`,
-        percentage: Math.round((1 - edgeRank / row.opponent_team_count) * 100),
-        valueLabel: ordinal(edgeRank),
-        color: "bg-green-500/20 text-green-400 border-green-500/30",
-      });
-    }
-  }
-
-  return badges;
 }
 
 export function CheatsheetRowCard({ row, teamLogos }: CheatsheetRowCardProps) {

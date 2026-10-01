@@ -7,11 +7,11 @@ from sqlalchemy.orm import Session
 
 from ..core.betting_math import american_to_implied_prob
 from ..core.deps import valid_sport
+from ..core.query_helpers import game_result_for_team, game_to_schema
 from ..core.sport_registry import get_sport
 from ..db import get_db
 from ..models import Game, OddsEvent, OddsLine, Team, TeamSeasonStats
 from app.schemas import (
-    GameOut,
     HeadToHeadResult,
     MatchupContextOut,
     MoneylineMarketOut,
@@ -125,12 +125,10 @@ def _division_standings(db: Session, sport: str, season: int, division: str, gam
         )
         wins = losses = ties = 0
         for g in finals:
-            team_score, opp_score = (
-                (g.home_score or 0, g.away_score or 0) if g.home_team_id == team.id else (g.away_score or 0, g.home_score or 0)
-            )
-            if team_score > opp_score:
+            _, _, result = game_result_for_team(g, team.id)
+            if result == "W":
                 wins += 1
-            elif team_score < opp_score:
+            elif result == "L":
                 losses += 1
             else:
                 ties += 1
@@ -168,14 +166,13 @@ def _recent_games(db: Session, sport: str, team_id: int, exclude_game_id: int, l
     out: list[RecentGameOut] = []
     for g in games:
         is_home = g.home_team_id == team_id
-        team_score = (g.home_score if is_home else g.away_score) or 0
-        opponent_score = (g.away_score if is_home else g.home_score) or 0
+        team_score, opponent_score, result = game_result_for_team(g, team_id)
         opponent = g.away_team if is_home else g.home_team
-        result = "W" if team_score > opponent_score else ("L" if team_score < opponent_score else "T")
         out.append(
             RecentGameOut(
                 season=g.season,
                 week=g.week,
+                kickoff=g.kickoff.isoformat() if g.kickoff else None,
                 opponent=opponent.abbreviation,
                 opponent_logo_url=opponent.logo_url,
                 is_home=is_home,
@@ -248,6 +245,7 @@ def get_matchup_context(game_id: int, sport: str = Depends(valid_sport), db: Ses
         HeadToHeadResult(
             season=g.season,
             week=g.week,
+            kickoff=g.kickoff.isoformat() if g.kickoff else None,
             home_team=g.home_team.abbreviation,
             away_team=g.away_team.abbreviation,
             home_score=g.home_score or 0,
@@ -268,17 +266,7 @@ def get_matchup_context(game_id: int, sport: str = Depends(valid_sport), db: Ses
     away_recent_games = _recent_games(db, sport, game.away_team_id, game.id)
 
     return MatchupContextOut(
-        game=GameOut(
-            id=game.id,
-            season=game.season,
-            week=game.week,
-            kickoff=game.kickoff.isoformat() if game.kickoff else None,
-            home_team=game.home_team,
-            away_team=game.away_team,
-            home_score=game.home_score,
-            away_score=game.away_score,
-            status=game.status,
-        ),
+        game=game_to_schema(game),
         window_mode=home_stats.window_mode if home_stats else "current",
         stat_rows=stat_rows,
         head_to_head=head_to_head,

@@ -1,6 +1,17 @@
 const API_BASE = "/api";
-// No sport switcher wired to real data yet — only NFL is registered on the backend.
-const DEFAULT_SPORT = "nfl";
+const SPORT_STORAGE_KEY = "hitrate.sport";
+
+export function getCurrentSport(): string {
+  return localStorage.getItem(SPORT_STORAGE_KEY) ?? "nfl";
+}
+
+// Persists the choice and reloads — simplest way to get every page (each of
+// which fetches independently, uncoupled from a global store) to refetch
+// under the new sport, without threading a sport param through every hook.
+export function setCurrentSport(sport: string): void {
+  localStorage.setItem(SPORT_STORAGE_KEY, sport);
+  window.location.reload();
+}
 
 import { useQuery } from '@tanstack/react-query';
 
@@ -13,6 +24,8 @@ export interface Config {
   current_season: number;
   current_week: number;
   last_updated: string | null;
+  period_unit: "week" | "day";
+  period_anchor_date: string | null; // ISO date such that week N == this date + N days (only set when period_unit is "day")
 }
 
 export interface Team {
@@ -47,6 +60,7 @@ export interface StatRow {
 export interface HeadToHeadResult {
   season: number;
   week: number;
+  kickoff: string | null;
   home_team: string;
   away_team: string;
   home_score: number;
@@ -90,6 +104,7 @@ export interface StandingsRow {
 export interface RecentGame {
   season: number;
   week: number;
+  kickoff: string | null;
   opponent: string;
   opponent_logo_url: string;
   is_home: boolean;
@@ -205,7 +220,7 @@ function trackEvent(eventName: string, metadata?: Record<string, unknown>): void
   fetch(`${API_BASE}/events`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ event_name: eventName, sport: DEFAULT_SPORT, metadata }),
+    body: JSON.stringify({ event_name: eventName, sport: getCurrentSport(), metadata }),
   }).catch(() => undefined);
 }
 
@@ -219,13 +234,13 @@ export interface PlayerInfo {
 
 export const api = {
   getSports: () => getJson<Sport[]>("/sports"),
-  getConfig: () => getJson<Config>(`/${DEFAULT_SPORT}/config`),
-  getPlayerInfo: (playerId: number) => getJson<PlayerInfo>(`/${DEFAULT_SPORT}/players/${playerId}`),
+  getConfig: () => getJson<Config>(`/${getCurrentSport()}/config`),
+  getPlayerInfo: (playerId: number) => getJson<PlayerInfo>(`/${getCurrentSport()}/players/${playerId}`),
   getPlayerCheatsheet: (playerId: number) =>
-    getJson<CheatsheetRow[]>(`/${DEFAULT_SPORT}/players/${playerId}/cheatsheet`),
+    getJson<CheatsheetRow[]>(`/${getCurrentSport()}/players/${playerId}/cheatsheet`),
   getGames: (season: number, week: number) =>
-    getJson<Game[]>(`/${DEFAULT_SPORT}/games?season=${season}&week=${week}`),
-  getMatchup: (gameId: number) => getJson<MatchupContext>(`/${DEFAULT_SPORT}/games/${gameId}/matchup`),
+    getJson<Game[]>(`/${getCurrentSport()}/games?season=${season}&week=${week}`),
+  getMatchup: (gameId: number) => getJson<MatchupContext>(`/${getCurrentSport()}/games/${gameId}/matchup`),
   getCheatsheet: (minHitRate = 1.0, minGames = 3, season?: number, week?: number, daysBack?: number) => {
     const params = new URLSearchParams({
       min_hit_rate: minHitRate.toString(),
@@ -235,25 +250,25 @@ export const api = {
     if (week !== undefined) params.append('week', week.toString());
     if (daysBack !== undefined) params.append('days_back', daysBack.toString());
     return getJson<CheatsheetRow[]>(
-      `/${DEFAULT_SPORT}/trends/cheatsheet?${params.toString()}`,
+      `/${getCurrentSport()}/trends/cheatsheet?${params.toString()}`,
     );
   },
   getBoard: (season: number, week: number) =>
-    getJson<BoardGame[]>(`/${DEFAULT_SPORT}/board?season=${season}&week=${week}`),
+    getJson<BoardGame[]>(`/${getCurrentSport()}/board?season=${season}&week=${week}`),
   getByeTeams: (season: number, week: number) =>
-    getJson<Team[]>(`/${DEFAULT_SPORT}/board/byes?season=${season}&week=${week}`),
+    getJson<Team[]>(`/${getCurrentSport()}/board/byes?season=${season}&week=${week}`),
   getTrendGroups: (season?: number, week?: number, daysBack?: number) => {
     const params = new URLSearchParams();
     if (season !== undefined) params.append('season', season.toString());
     if (week !== undefined) params.append('week', week.toString());
     if (daysBack !== undefined) params.append('days_back', daysBack.toString());
     const query = params.toString() ? `?${params.toString()}` : '';
-    return getJson<TrendGroups>(`/${DEFAULT_SPORT}/trends/groups${query}`);
+    return getJson<TrendGroups>(`/${getCurrentSport()}/trends/groups${query}`);
   },
-  getTeams: () => getJson<Team[]>(`/${DEFAULT_SPORT}/teams`),
-  getParlays: (gameId: number) => getJson<Parlay[]>(`/${DEFAULT_SPORT}/games/${gameId}/parlays`),
-  getSamplePrices: () => getJson<number[]>(`/${DEFAULT_SPORT}/odds/sample`),
-  refreshScores: () => postJson<{ last_updated: string }>(`/${DEFAULT_SPORT}/refresh`),
+  getTeams: () => getJson<Team[]>(`/${getCurrentSport()}/teams`),
+  getParlays: (gameId: number) => getJson<Parlay[]>(`/${getCurrentSport()}/games/${gameId}/parlays`),
+  getSamplePrices: () => getJson<number[]>(`/${getCurrentSport()}/odds/sample`),
+  refreshScores: () => postJson<{ last_updated: string }>(`/${getCurrentSport()}/refresh`),
   trackEvent,
 };
 

@@ -5,7 +5,7 @@ from ..core.deps import valid_sport
 from ..db import get_db
 from ..models import Player, PlayerTrendSignal
 from ..schemas import CheatsheetRowOut, PlayerInfoOut, PlayerTrendOut, TrendSignalOut
-from .trends import get_player_signal_rows
+from .trends_service import get_player_signal_rows
 
 router = APIRouter(prefix="/{sport}/players", tags=["players"])
 
@@ -41,7 +41,9 @@ def get_player_trends(player_id: int, sport: str = Depends(valid_sport), db: Ses
     if player is None:
         raise HTTPException(status_code=404, detail="Player not found")
 
-    signals = db.query(PlayerTrendSignal).filter(PlayerTrendSignal.player_id == player_id).all()
+    signals = db.query(PlayerTrendSignal).filter(
+        PlayerTrendSignal.sport == sport, PlayerTrendSignal.player_id == player_id
+    ).all()
     results: list[PlayerTrendOut] = []
     for signal in signals:
         trend_signals = []

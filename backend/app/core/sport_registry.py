@@ -2,9 +2,11 @@
 
 from .sport_adapter import SportAdapter
 from ..sports.nfl_adapter import NFL_ADAPTER
+from ..sports.nhl_adapter import NHL_ADAPTER
 
 SPORTS: dict[str, SportAdapter] = {
     "nfl": NFL_ADAPTER,
+    "nhl": NHL_ADAPTER,
 }
 
 

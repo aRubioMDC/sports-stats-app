@@ -1,10 +1,16 @@
 export const STAT_LABELS: Record<string, string> = {
+  // NFL
   receptions: "Receptions",
   receiving_yards: "Rec Yards",
   rushing_yards: "Rush Yards",
   passing_yards: "Pass Yards",
   team_points: "Team Points",
   game_total_points: "Game Total",
+  // NHL
+  goals: "Goals",
+  assists: "Assists",
+  points: "Points",
+  shots_on_goal: "Shots on Goal",
 };
 
 export function formatTrendLine(statName: string, threshold: number, direction: string): string {

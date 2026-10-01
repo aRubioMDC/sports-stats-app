@@ -5,6 +5,9 @@ import { GameDetail } from './pages/GameDetail'
 import { Cheatsheet } from './pages/Cheatsheet'
 import { Trends } from './pages/Trends'
 import { PlayerDetail } from './pages/PlayerDetail'
+import { Privacy } from './pages/Privacy'
+import { Terms } from './pages/Terms'
+import { Disclaimer } from './pages/Disclaimer'
 import { BankrollProvider } from './lib/bankroll'
 
 function App() {
@@ -17,6 +20,9 @@ function App() {
           <Route path="/trends" element={<Trends />} />
           <Route path="/cheatsheet" element={<Cheatsheet />} />
           <Route path="/players/:playerId" element={<PlayerDetail />} />
+          <Route path="/privacy" element={<Privacy />} />
+          <Route path="/terms" element={<Terms />} />
+          <Route path="/disclaimer" element={<Disclaimer />} />
         </Routes>
       </Layout>
     </BankrollProvider>
