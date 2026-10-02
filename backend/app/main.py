@@ -92,7 +92,7 @@ _scores_refresh_version_by_sport: dict[str, int] = {slug: 0 for slug in SPORTS}
 
 # Fase 4 candidate: gate these behind a subscription once free-usage traction is
 # validated. No enforcement today — purely a marker for future scoping.
-PREMIUM_CANDIDATE_FEATURES = ["advanced_tools", "parlays"]
+PREMIUM_CANDIDATE_FEATURES = ["advanced_tools", "parlays", "game_analytics"]
 
 
 class AnalyticsEventIn(BaseModel):
