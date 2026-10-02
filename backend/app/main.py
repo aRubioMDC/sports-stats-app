@@ -1,11 +1,13 @@
 import json
 import logging
 import os
+import time
 from datetime import datetime, timezone
 
 from apscheduler.schedulers.background import BackgroundScheduler
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
+from fastapi.responses import StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -48,6 +50,10 @@ app.include_router(board.router, prefix="/api")
 # Last time each sport's data was touched, in-memory — surfaced via /config so the
 # frontend can show "Updated Xm ago" and know how fresh the board is.
 _last_updated: dict[str, datetime] = {}
+
+# Live-only marker incremented on each cheap scores refresh. SSE clients watch this
+# and refresh only the UI slices that depend on score/status.
+_scores_refresh_version = 0
 
 # Fase 4 candidate: gate these behind a subscription once free-usage traction is
 # validated. No enforcement today — purely a marker for future scoping.
@@ -121,9 +127,11 @@ scheduler = BackgroundScheduler()
 
 
 def _refresh_all_sports_scores() -> None:
+    global _scores_refresh_version
     for adapter in SPORTS.values():
         adapter.refresh_scores()
         _last_updated[adapter.slug] = datetime.now(timezone.utc)
+    _scores_refresh_version += 1
     clear_cache()
 
 
@@ -134,6 +142,50 @@ def _run_all_sports_etl() -> None:
     clear_cache()
 
 
+@app.get("/api/{sport}/scores/stream")
+def stream_sport_scores(sport: str):
+    """SSE stream for live score/status refresh signals (no full-page reload)."""
+    if sport not in SPORTS:
+        raise HTTPException(status_code=404, detail=f"Unknown sport '{sport}'")
+
+    def event_stream():
+        # Push an initial signal so the frontend can sync immediately on connect.
+        initial_payload = {
+            "sport": sport,
+            "version": _scores_refresh_version,
+            "last_updated": _last_updated.get(sport).isoformat() if _last_updated.get(sport) else None,
+        }
+        yield f"event: scores_refresh\ndata: {json.dumps(initial_payload)}\n\n"
+
+        last_seen_version = _scores_refresh_version
+        keepalive_ticks = 0
+        while True:
+            current_version = _scores_refresh_version
+            if current_version != last_seen_version:
+                payload = {
+                    "sport": sport,
+                    "version": current_version,
+                    "last_updated": _last_updated.get(sport).isoformat() if _last_updated.get(sport) else None,
+                }
+                yield f"event: scores_refresh\ndata: {json.dumps(payload)}\n\n"
+                last_seen_version = current_version
+                keepalive_ticks = 0
+            else:
+                # Keep proxies/connections alive with an SSE comment every ~15s.
+                keepalive_ticks += 1
+                if keepalive_ticks >= 5:
+                    yield ": keepalive\n\n"
+                    keepalive_ticks = 0
+            time.sleep(3)
+
+    headers = {
+        "Cache-Control": "no-cache",
+        "Connection": "keep-alive",
+        "X-Accel-Buffering": "no",
+    }
+    return StreamingResponse(event_stream(), media_type="text/event-stream", headers=headers)
+
+
 @app.on_event("startup")
 def start_scheduler():
     # Run the full pipeline once immediately so a fresh deploy/restart doesn't sit on
@@ -141,7 +193,7 @@ def start_scheduler():
     # - scores/status only, frequent (cheap: one schedule pull, catches live results fast)
     # - full stat rollups + trends, less frequent (expensive: touches every player/game)
     scheduler.add_job(_run_all_sports_etl, "date", id="etl_run_all_initial")
-    scheduler.add_job(_refresh_all_sports_scores, "interval", minutes=15, id="etl_refresh_scores", replace_existing=True)
+    scheduler.add_job(_refresh_all_sports_scores, "interval", minutes=1, id="etl_refresh_scores", replace_existing=True)
     scheduler.add_job(_run_all_sports_etl, "interval", hours=6, id="etl_run_all", replace_existing=True)
     scheduler.start()
 

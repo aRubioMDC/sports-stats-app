@@ -269,6 +269,7 @@ export const api = {
   getParlays: (gameId: number) => getJson<Parlay[]>(`/${getCurrentSport()}/games/${gameId}/parlays`),
   getSamplePrices: () => getJson<number[]>(`/${getCurrentSport()}/odds/sample`),
   refreshScores: () => postJson<{ last_updated: string }>(`/${getCurrentSport()}/refresh`),
+  openScoresStream: () => new EventSource(`${API_BASE}/${getCurrentSport()}/scores/stream`),
   trackEvent,
 };
 

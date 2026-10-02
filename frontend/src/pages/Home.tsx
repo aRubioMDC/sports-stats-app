@@ -277,6 +277,29 @@ export function Home() {
     }
   };
 
+  useEffect(() => {
+    if (season === null || week === null) return;
+
+    const stream = api.openScoresStream();
+
+    const onScoresRefresh = () => {
+      // Refresh only score-sensitive queries; trends/parlays keep their own cadence.
+      queryClient.invalidateQueries({ queryKey: ["board", season, week] });
+      queryClient.invalidateQueries({ queryKey: ["config"] });
+      queryClient.invalidateQueries({ queryKey: ["games", season, week] });
+    };
+
+    stream.addEventListener("scores_refresh", onScoresRefresh);
+    stream.onerror = () => {
+      // EventSource auto-reconnects; no manual retry loop needed here.
+    };
+
+    return () => {
+      stream.removeEventListener("scores_refresh", onScoresRefresh);
+      stream.close();
+    };
+  }, [queryClient, season, week]);
+
   return (
     <div className="mx-auto max-w-6xl px-4 py-6">
       {/* Header */}
