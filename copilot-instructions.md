@@ -41,6 +41,16 @@ When implementing features:
 4. Add component rendering logic last
 5. Use web search for competitor analysis if building similar features
 
+### Mandatory standards for this repo
+- Never create opaque or random file names such as `a1b2c3d4e5f6_*`.
+- Names must describe the responsibility clearly and fit the repo conventions.
+- Prefer updating existing files over creating a new one when the feature belongs to an existing module.
+- Refactors must follow SOLID and keep the route layer thin; move logic to services, repositories, or helpers.
+- Do not mix unrelated responsibilities in one file or one patch.
+- Keep all multi-sport logic behind adapter/registry patterns and never hardcode sport assumptions.
+- Add targeted validation after refactors and before claiming the work is complete.
+- Document remaining gaps honestly instead of labeling the project as fully complete when it is not.
+
 ### Use Web Search When:
 - Analyzing Linemate.io or other betting apps for feature parity
 - Looking up NFL API documentation
@@ -74,8 +84,16 @@ curl "http://localhost:8000/api/nfl/board?season=2026&week=3"
 - Show `git status`/diff summary first
 - User preference: Explicit confirmation needed
 
+### Legal & Compliance
+- **Privacy Policy, Terms, Disclaimer**: Implemented in `frontend/src/pages/` with routes
+- **Footer Component**: Created with links to legal pages and resources
+- **Cookie/Auth roadmap**: Summarized in `PRODUCT.md` under "Auth and Privacy Roadmap"
+  - Current state: No auth/session cookies in production flows
+  - Fase 3-4 target: secure auth sessions + explicit analytics consent
+  - Legal docs should be updated as tracking/auth scope evolves
+
 ---
 
 **Web Search Integration**: Enabled via `vscode-websearchforcopilot_webSearch`  
 **Memory System**: Session-scoped context maintained across conversation turns  
-**Last Updated**: 2026-09-23
+**Last Updated**: 2026-10-01

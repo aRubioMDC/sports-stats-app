@@ -10,7 +10,7 @@ NFL bettors and prop researchers checking real statistical edges before placing 
 
 ## Product Purpose
 
-SportStats surfaces every real, backend-computed statistical signal for NFL player props and game markets (recent-form hit rates, home/away splits, head-to-head, opponent rank, injury-impact, and de-vigged market edge vs. real sportsbook prices) across a Home board, a Trends explorer, a Cheatsheet, a per-player page, and a per-game detail page. Nothing on screen is fabricated or mocked — every number traces to a real database computation, and small-sample or missing data is shown honestly (confidence intervals, "no data yet") rather than smoothed over or hidden. Success = a user can find a genuine edge and trust every figure that led them there.
+HitRate surfaces every real, backend-computed statistical signal for NFL player props and game markets (recent-form hit rates, home/away splits, head-to-head, opponent rank, injury-impact, and de-vigged market edge vs. real sportsbook prices) across a Home board, a Trends explorer, a Cheatsheet, a per-player page, and a per-game detail page. Nothing on screen is fabricated or mocked — every number traces to a real database computation, and small-sample or missing data is shown honestly (confidence intervals, "no data yet") rather than smoothed over or hidden. Success = a user can find a genuine edge and trust every figure that led them there.
 
 ## Brand Personality
 
@@ -33,3 +33,18 @@ Honest, sharp, analytical. The tone is a professional trading terminal, not a ga
 ## Accessibility & Inclusion
 
 Standard WCAG AA target. Dark mode only today (no light theme). The existing emerald/amber/rose hit-rate color scale is a real red-green color-blindness risk on this surface (odds/edge signals are safety-adjacent, financial decisions) — new and refreshed components should pair color with a non-color cue (icon, position, or label) rather than color alone.
+
+## Auth and Privacy Roadmap
+
+Current state:
+
+- No user login yet
+- No auth/session cookies in production flows
+- Anonymous first-party event tracking only
+
+Future target (Fase 3-4):
+
+- Add secure auth session cookies (`HttpOnly`, `Secure`, `SameSite=Lax`)
+- Add explicit consent cookie for optional analytics
+- Keep preference storage minimal and user-controlled
+- Avoid third-party trackers by default unless explicitly enabled

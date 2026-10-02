@@ -1,5 +1,5 @@
 ---
-name: SportStats
+name: HitRate
 description: Honest, real-data NFL prop trends and betting-edge analysis
 colors:
   bg-void: "#0b0d12"
@@ -78,13 +78,13 @@ components:
     rounded: "{rounded.sm}"
 ---
 
-# Design System: SportStats
+# Design System: HitRate
 
 ## 1. Overview
 
 **Creative North Star: "The Trading Terminal"**
 
-SportStats reads like a professional trading terminal for NFL prop bets, not a gamified sportsbook. The palette is a near-black void punctuated only by real signal — emerald when the real numbers are good, amber when mixed, rose when they aren't. Everything else stays a disciplined, low-contrast gray-on-black scale so that color is never decorative, only informational: if something is emerald on this screen, it means a real hit rate or edge is genuinely strong.
+HitRate reads like a professional trading terminal for NFL prop bets, not a gamified sportsbook. The palette is a near-black void punctuated only by real signal — emerald when the real numbers are good, amber when mixed, rose when they aren't. Everything else stays a disciplined, low-contrast gray-on-black scale so that color is never decorative, only informational: if something is emerald on this screen, it means a real hit rate or edge is genuinely strong.
 
 The system explicitly rejects the DraftKings/FanDuel neon slot-machine aesthetic (no confetti, no manufactured urgency, no celebratory motion on a "win") and the generic AI-SaaS dashboard look (no cream backgrounds, no gradient-clipped headlines, no uppercase eyebrow above every section, no identical icon-card grids). Density is a feature: bettors scan many real signals quickly, so layouts favor tight, bordered, information-dense cards over generous marketing whitespace.
 

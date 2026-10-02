@@ -1,12 +1,16 @@
-# SportStats — Agent Instructions
+# HitRate — Agent Instructions
 
-NFL stats/betting-decision web app fusing **ValueStats** (match-context stats) and
-**Linemate** (player prop trends/hit-rates), built on free real data via `nflreadpy`.
+Multi-sport stats/betting-decision web app fusing **ValueStats** (match-context stats) and
+**Linemate** (player prop trends/hit-rates), built on free real data. Started as NFL-only;
+**NHL was added in Fase 2** and more sports/leagues will follow, each behind the same
+`SportAdapter` interface.
 
 ## Product roadmap (do not skip ahead)
 
-- **Fase 1 (current)**: finish the core tool — one sport (NFL), free, stable, no auth.
-- **Fase 2**: add more sports/leagues (reuse the `SportAdapter` pattern).
+- **Fase 1 (done)**: core tool for one sport (NFL), free, stable, no auth.
+- **Fase 2 (current)**: add more sports/leagues (reuse the `SportAdapter` pattern) — NHL
+  is live (`app/sports/nhl_adapter.py`, `nhl` key in `SPORTS` registry); more
+  sports/leagues to come.
 - **Fase 3**: refine existing tools, add more.
 - **Fase 4**: after a free-usage period validates traction, evaluate gating
   Advanced Tools / Parlays behind a paid subscription.
@@ -19,8 +23,11 @@ When adding features, prefer marking them as "premium-candidate" conceptually
 
 - **Backend**: Python 3.12, FastAPI, SQLAlchemy 2.0, Alembic, Pydantic v2,
   APScheduler (BackgroundScheduler). Modular monolith with a `SportAdapter`
-  protocol (`app/core/sport_adapter.py`) — NFL (`app/sports/nfl_adapter.py`) is the
-  only implementation so far; keep new sports behind the same interface.
+  protocol (`app/core/sport_adapter.py`). Implementations: NFL
+  (`app/sports/nfl_adapter.py`, source `nflreadpy`) and NHL
+  (`app/sports/nhl_adapter.py`, source `app/etl/nhl_client.py`). Registered in
+  `app/core/sport_registry.py` (`SPORTS` dict: `"nfl"`, `"nhl"`). Keep new sports
+  behind the same interface.
 - **Data source**: `nflreadpy` (polars-based). `truststore.inject_into_ssl()` is
   required at process start to bypass corporate proxy SSL issues (see `app/main.py`
   and test files).
@@ -28,9 +35,14 @@ When adding features, prefer marking them as "premium-candidate" conceptually
   direct IPv6 connection does NOT work on this network. Configured via
   `DATABASE_URL` / `backend/.env` (see `backend/app/config.py`, `Settings`).
 - **Frontend**: React 19 + Vite + TypeScript + Tailwind CSS v4, react-router-dom.
-- **Deploy target**: Railway. `railway.toml` and `infra/Dockerfile` already exist.
+- **Deploy target**: self-hosting on a home Ubuntu Server 24.04 box via Docker +
+  Cloudflare Tunnel (see `DEPLOYMENT_GUIDE.md`, `infra/docker-compose.yml`). Split
+  into 3 containers (`infra/frontend.Dockerfile`, `infra/backend.Dockerfile`, nginx
+  reverse proxy) + `cloudflared`, unlike the original monolith image. `railway.toml`
+  and `infra/Dockerfile` (the monolith, frontend-dist-in-backend-image build) are
+  left in place but **dormant/unused** — Railway was never actually deployed.
   `GET /api/health` is the health-check endpoint.
-- **Repo**: `https://github.com/aRubioMDC/sports-stats-app`, branch `main`.
+- **Repo**: `https://github.com/aRubioMDC/hitrate`, branch `main`.
 
 ## Getting started / dev commands
 
@@ -42,7 +54,52 @@ When adding features, prefer marking them as "premium-candidate" conceptually
 - Typecheck + build frontend (from `frontend/`): `npx tsc --noEmit; npm run build`
 - ETL manual full run: `python -m app.etl.run_all` (also runs automatically on
   startup + every 6h via the scheduler in `main.py`)
+## Repository standards and guardrails
 
+These rules are mandatory for every change in this repo:
+
+- Never create random, meaningless file names like `a1b2c3d4e5f6_*` or other hash-style names.
+  Use descriptive names aligned with the business feature or migration purpose.
+- For Alembic migrations, use a clear slug pattern such as
+  `YYYYMMDDHHMM_descriptive_name.py` or a human-readable migration name; no opaque UUID/hash prefixes.
+- Prefer updating existing files over creating new files when the concern already has a home.
+- Do not create "utility dump" files or throwaway modules without an explicit reason and a clear role.
+- Keep file names consistent with the existing project conventions: Python modules in `snake_case`,
+  React components in `PascalCase`, feature folders named by responsibility, not by random labels.
+- Before creating a new file or module, confirm: the responsibility, location, and naming convention.
+
+## Refactor and design standards
+
+- Follow SOLID principles: one class/module responsibility, clear boundaries, minimal coupling.
+- Keep routers/controllers thin. Move business logic into service, repository, or query modules.
+- Do not mix orchestration, persistence, and formatting logic in the same function or file.
+- Preserve existing behavior during refactors; do not "simplify" or rename stuff without a functional reason.
+- Prefer extracting shared logic into the right abstraction instead of duplicating code across routes.
+- Add or update targeted tests when changing logic, especially for endpoints, adapters, and multi-sport filters.
+- Do not add ad-hoc performance tricks without checking whether there is already an established pattern in the repo.
+
+## Architecture rules
+
+- Keep multi-sport logic behind the `SportAdapter` contract and the `SPORTS` registry. Do not hardcode
+  one sport's logic into a multi-sport path.
+- All DB queries must be scoped by `sport` unless the operation is explicitly global.
+- Never hardcode seasonal window values or week numbers when the repo already exposes dynamic season/week accessors.
+- Use the existing caching pattern (`@ttl_cache`) for expensive endpoints and ETL-heavy lookups; do not add custom caches in ad-hoc places.
+- Keep scheduler, ETL, and refresh flows explicit and consistent with the existing `main.py` patterns.
+
+## Validation before completion
+
+- Run the smallest relevant validation for the change: targeted pytest, frontend type-check/build, or a smoke test.
+- If a refactor touches shared patterns, verify adjacent behavior instead of assuming it is safe.
+- Do not claim the work is complete without fresh evidence from the relevant command output.
+- If something is still open or partial, document it honestly instead of hiding it behind a broad "done" claim.
+
+## Git and project hygiene
+
+- Never run `git commit` without explicit user confirmation.
+- Show the diff or status before finalizing a batch of changes.
+- Group edits by concern instead of mixing unrelated work in one patch.
+- If a refactor is broad, document what remains intentionally unfinished rather than pretending the project is final.
 ## Performance: DB is remote, cache expensive endpoints
 
 The Postgres DB is on Supabase (remote, not local), so every query round-trip
@@ -184,9 +241,13 @@ though NFL is the only sport implemented so far.
   card grid), Parlays (game-switcher + multi-slate carousel), data-freshness
   system (dual-cadence scheduler + manual refresh + "Updated Xm ago").
 - Backend smoke tests exist (`backend/tests/test_smoke.py`) but there is no
-  frontend test suite yet, and no CI workflow running tests on push/PR.
-- Not yet deployed to Railway — `railway.toml`/`infra/Dockerfile` exist but the
-  actual `railway up`/deploy step has not been run this session.
+  frontend test suite yet. CI (`.github/workflows/docker-publish.yml`) builds
+  and publishes Docker images to GHCR on push to `main` but does not run tests.
+- Self-host deployment artifacts exist (`infra/docker-compose.yml`,
+  `infra/backend.Dockerfile`, `infra/frontend.Dockerfile`,
+  `infra/nginx/`, `infra/cloudflared/`, `infra/scripts/`, see
+  `DEPLOYMENT_GUIDE.md`) — not yet run on the actual home server this session.
+  `railway.toml`/`infra/Dockerfile` (old Railway target) are dormant/unused.
 - No user accounts/auth yet (expected — Fase 1 has no auth per roadmap above).
   Auth approach still to be decided — see "Auth ideas" below.
 - Basic anonymous analytics now in place: `analytics_events` table +
