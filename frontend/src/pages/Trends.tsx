@@ -14,15 +14,13 @@ import {
   sortRows,
 } from "../lib/cheatsheet-config";
 import type { CategoryKey, SortKey } from "../lib/cheatsheet-config";
+import { useCheatsheetFilters } from "../lib/useCheatsheetFilters";
 import { TrendRowCard } from "../components/TrendRowCard";
 import { TrendDetailModal } from "../components/TrendDetailModal";
 
 export function Trends() {
-  const [category, setCategory] = useState<CategoryKey>("all");
-  const [statFilter, setStatFilter] = useState(ALL_STAT_OPTION);
-  const [teamFilter, setTeamFilter] = useState(ALL_TEAM_OPTION);
-  const [sortKey, setSortKey] = useState<SortKey>("hit_rate");
-  const [minHitRate, setMinHitRate] = useState(MIN_HIT_RATE_FLOOR);
+  const { filters, updateFilters } = useCheatsheetFilters();
+  const { category, statFilter, teamFilter, sortKey, minHitRate } = filters;
   // An index into visibleRows (not the row itself) so the modal can step
   // forward/backward through the current filtered/sorted list without closing.
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
@@ -118,7 +116,7 @@ export function Trends() {
               <button
                 key={item.key}
                 type="button"
-                onClick={() => setCategory(item.key)}
+                onClick={() => updateFilters({ category: item.key })}
                 title={item.description}
                 className={`rounded-lg px-3 py-2 text-sm font-semibold transition ${
                   category === item.key ? "bg-white text-[#050914] shadow-sm" : "text-white/60 hover:text-white"
@@ -140,7 +138,7 @@ export function Trends() {
               Stat Type
               <select
                 value={statFilter}
-                onChange={(e) => setStatFilter(e.target.value)}
+                onChange={(e) => updateFilters({ statFilter: e.target.value })}
                 className="mt-1 block w-full rounded-lg border border-white/10 bg-[#0b0d12] px-3 py-2 text-sm text-white"
               >
                 <option value={ALL_STAT_OPTION}>All Stats</option>
@@ -156,7 +154,7 @@ export function Trends() {
               Team
               <select
                 value={teamFilter}
-                onChange={(e) => setTeamFilter(e.target.value)}
+                onChange={(e) => updateFilters({ teamFilter: e.target.value })}
                 className="mt-1 block w-full rounded-lg border border-white/10 bg-[#0b0d12] px-3 py-2 text-sm text-white"
               >
                 <option value={ALL_TEAM_OPTION}>All Teams</option>
@@ -172,7 +170,7 @@ export function Trends() {
               Sort By
               <select
                 value={sortKey}
-                onChange={(e) => setSortKey(e.target.value as SortKey)}
+                onChange={(e) => updateFilters({ sortKey: e.target.value as SortKey })}
                 className="mt-1 block w-full rounded-lg border border-white/10 bg-[#0b0d12] px-3 py-2 text-sm text-white"
               >
                 {SORT_OPTIONS.map((opt) => (
@@ -198,7 +196,7 @@ export function Trends() {
                   max="100"
                   step="1"
                   value={Math.round(minHitRate * 100)}
-                  onChange={(e) => setMinHitRate(parseInt(e.target.value) / 100)}
+                  onChange={(e) => updateFilters({ minHitRate: parseInt(e.target.value) / 100 })}
                   style={{
                     // Fill % must be relative to the slider's actual min-max span
                     // (60-100), not the raw value — otherwise the thumb sits at

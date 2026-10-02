@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { api, getCurrentSport, useConfig, useTeams, useTrendGroups } from "../api";
 import type { CheatsheetRow } from "../api";
@@ -16,15 +16,11 @@ import {
   sortRows,
 } from "../lib/cheatsheet-config";
 import type { CategoryKey, SortKey } from "../lib/cheatsheet-config";
+import { useCheatsheetFilters } from "../lib/useCheatsheetFilters";
 
 export function Cheatsheet() {
-  const [category, setCategory] = useState<CategoryKey>("all");
-  const [search, setSearch] = useState("");
-  const [statFilter, setStatFilter] = useState(ALL_STAT_OPTION);
-  const [teamFilter, setTeamFilter] = useState(ALL_TEAM_OPTION);
-  const [sortKey, setSortKey] = useState<SortKey>("hit_rate");
-  const [minHitRate, setMinHitRate] = useState(MIN_HIT_RATE_FLOOR);
-  const [onlyMarketEdge, setOnlyMarketEdge] = useState(false);
+  const { filters, updateFilters } = useCheatsheetFilters();
+  const { category, search, statFilter, teamFilter, sortKey, minHitRate, onlyMarketEdge } = filters;
 
   const configQuery = useConfig();
   // No daysBack — that restricts to games played in the last N literal days,
@@ -114,7 +110,7 @@ export function Cheatsheet() {
           <button
             key={item.key}
             type="button"
-            onClick={() => setCategory(item.key)}
+            onClick={() => updateFilters({ category: item.key })}
             title={item.description}
             className={`rounded-lg px-3 py-2 text-sm font-semibold transition ${
               category === item.key ? "bg-white text-[#050914] shadow-sm" : "text-white/60 hover:text-white"
@@ -136,7 +132,7 @@ export function Cheatsheet() {
             <input
               type="text"
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={(e) => updateFilters({ search: e.target.value })}
               placeholder={getCurrentSport() === "nhl" ? "e.g. McDavid" : "e.g. Mahomes"}
               className="mt-1 block w-full rounded-lg border border-white/10 bg-[#0b0d12] px-3 py-2 text-sm text-white placeholder:text-white/30"
             />
@@ -146,7 +142,7 @@ export function Cheatsheet() {
             Stat Type
             <select
               value={statFilter}
-              onChange={(e) => setStatFilter(e.target.value)}
+              onChange={(e) => updateFilters({ statFilter: e.target.value })}
               className="mt-1 block w-full rounded-lg border border-white/10 bg-[#0b0d12] px-3 py-2 text-sm text-white"
             >
               <option value={ALL_STAT_OPTION}>All Stats</option>
@@ -162,7 +158,7 @@ export function Cheatsheet() {
             Team
             <select
               value={teamFilter}
-              onChange={(e) => setTeamFilter(e.target.value)}
+              onChange={(e) => updateFilters({ teamFilter: e.target.value })}
               className="mt-1 block w-full rounded-lg border border-white/10 bg-[#0b0d12] px-3 py-2 text-sm text-white"
             >
               <option value={ALL_TEAM_OPTION}>All Teams</option>
@@ -178,7 +174,7 @@ export function Cheatsheet() {
             Sort By
             <select
               value={sortKey}
-              onChange={(e) => setSortKey(e.target.value as SortKey)}
+              onChange={(e) => updateFilters({ sortKey: e.target.value as SortKey })}
               className="mt-1 block w-full rounded-lg border border-white/10 bg-[#0b0d12] px-3 py-2 text-sm text-white"
             >
               {SORT_OPTIONS.map((opt) => (
@@ -204,7 +200,7 @@ export function Cheatsheet() {
                 max="100"
                 step="1"
                 value={Math.round(minHitRate * 100)}
-                onChange={(e) => setMinHitRate(parseInt(e.target.value) / 100)}
+                onChange={(e) => updateFilters({ minHitRate: parseInt(e.target.value) / 100 })}
                 style={{
                   background: `linear-gradient(to right, #10b981 0%, #10b981 ${sliderFillPct(minHitRate * 100, MIN_HIT_RATE_FLOOR * 100, 100)}%, #1f2937 ${sliderFillPct(minHitRate * 100, MIN_HIT_RATE_FLOOR * 100, 100)}%, #1f2937 100%)`,
                 }}
@@ -223,7 +219,7 @@ export function Cheatsheet() {
           <input
             type="checkbox"
             checked={onlyMarketEdge}
-            onChange={(e) => setOnlyMarketEdge(e.target.checked)}
+            onChange={(e) => updateFilters({ onlyMarketEdge: e.target.checked })}
             className="h-4 w-4 rounded border-white/20 bg-[#0b0d12] accent-emerald-500"
           />
           Only show real market-edge picks
