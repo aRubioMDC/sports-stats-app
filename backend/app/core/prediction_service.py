@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass
+
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
@@ -84,7 +86,7 @@ def _hockey_prediction(
         league_games=round(league_games, 1),
         home_games=round(home_games, 1),
         away_games=round(away_games, 1),
-        low_sample=min(home_games, away_games) < gm.LOW_SAMPLE_TEAM_GAMES,
+        low_sample=min(home_games, away_games) < hm.LOW_SAMPLE_TEAM_GAMES,
         win=WinProbabilityOut(home=round(win_home, 3), away=round(win_away, 3)),
         margin_buckets=[
             MarginBucketOut(label=label, home=round(h, 3), away=round(a, 3))
@@ -98,6 +100,46 @@ def _hockey_prediction(
             for line, h, a in hm.spread_cover(dist, spread_lines)
         ],
     )
+
+
+@dataclass(frozen=True)
+class GameProjection:
+    """Expected scoring for one matchup plus the ratings behind it."""
+
+    sport: str
+    league: gm.LeagueScoring
+    home: gm.TeamRating | None
+    away: gm.TeamRating | None
+    mu_home: float
+    mu_away: float
+
+    @property
+    def home_win_probability(self) -> float:
+        """Unrounded model probability that the home team wins."""
+        if self.sport == "nhl":
+            return hm.win_probabilities(hm.final_margin_distribution(self.mu_home, self.mu_away))[0]
+        return gm.win_probabilities(self.mu_home - self.mu_away, self.league.margin_sd)[0]
+
+    def over_probability(self, line: float) -> float:
+        """Unrounded model probability that the combined score finishes above `line`."""
+        mean_total = self.mu_home + self.mu_away
+        if self.sport == "nhl":
+            return hm.over_under(mean_total, [line])[0][1]
+        return gm.over_under(mean_total, self.league.total_sd, [line])[0][1]
+
+
+def project_game(sport: str, results: list[gm.GameResult], home_id: int, away_id: int) -> GameProjection | None:
+    """Pure model step (no DB): None when there are too few results for a league baseline."""
+    league = gm.league_scoring(results)
+    if league is None:
+        return None
+    home = gm.team_rating(results, home_id)
+    away = gm.team_rating(results, away_id)
+    if sport == "nhl":
+        mu_home, mu_away = gm.project_points(home, away, league, prior_games=hm.PRIOR_GAMES)
+    else:
+        mu_home, mu_away = gm.project_points(home, away, league)
+    return GameProjection(sport, league, home, away, mu_home, mu_away)
 
 
 @ttl_cache(CACHE_TTL_MEDIUM)
@@ -116,17 +158,16 @@ def build_prediction(
         return GamePredictionOut(available=False, reason="The statistical model is not available for this sport yet.")
 
     results = _load_results(db, sport, game)
-    league = gm.league_scoring(results)
-    if league is None:
+    projection = project_game(sport, results, game.home_team_id, game.away_team_id)
+    if projection is None:
         return GamePredictionOut(available=False, reason="Not enough completed games yet to build a reliable model.")
 
-    home = gm.team_rating(results, game.home_team_id)
-    away = gm.team_rating(results, game.away_team_id)
-    home_games = home.games if home else 0.0
-    away_games = away.games if away else 0.0
+    league = projection.league
+    mu_home, mu_away = projection.mu_home, projection.mu_away
+    home_games = projection.home.games if projection.home else 0.0
+    away_games = projection.away.games if projection.away else 0.0
 
     if sport == "nhl":
-        mu_home, mu_away = gm.project_points(home, away, league, prior_games=hm.PRIOR_GAMES)
         return _hockey_prediction(
             mu_home,
             mu_away,
@@ -135,7 +176,6 @@ def build_prediction(
             market_spread_point,
         )
 
-    mu_home, mu_away = gm.project_points(home, away, league)
     mean_margin = mu_home - mu_away
     mean_total = mu_home + mu_away
 
