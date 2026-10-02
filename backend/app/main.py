@@ -12,9 +12,11 @@ from fastapi.responses import StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
+from sqlalchemy import text
 
 from .core.cache import clear_cache
 from .core.sport_registry import SPORTS
+from .config import settings
 from .db import SessionLocal, get_db
 from .models import AnalyticsEvent, Game
 from .routers import board, games, matchup, odds, players, teams, trends
@@ -23,16 +25,24 @@ from sqlalchemy.orm import Session
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 logger = logging.getLogger("hitrate")
 
-scheduler = BackgroundScheduler()
+scheduler = BackgroundScheduler(
+    job_defaults={"coalesce": True, "max_instances": 1, "misfire_grace_time": 300}
+)
+
+
+def _cors_origins() -> list[str]:
+    return [origin.strip() for origin in settings.cors_origins.split(",") if origin.strip()]
 
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
-    # Run the full pipeline once immediately so a fresh deploy/restart doesn't sit on
-    # stale scores for hours, then keep two cadences going:
+    # Run a full pipeline at startup before serving so fresh deploys don't open
+    # with empty/uninitialized board stats.
+    _run_all_sports_etl()
+
+    # Keep two cadences going:
     # - scores/status only, frequent (cheap: one schedule pull, catches live results fast)
     # - full stat rollups + trends, less frequent (expensive: touches every player/game)
-    scheduler.add_job(_run_all_sports_etl, "date", id="etl_run_all_initial")
     scheduler.add_job(_refresh_all_sports_scores, "interval", minutes=1, id="etl_refresh_scores", replace_existing=True)
     scheduler.add_job(_run_all_sports_etl, "interval", hours=6, id="etl_run_all", replace_existing=True)
     scheduler.start()
@@ -47,7 +57,7 @@ app = FastAPI(title="HitRate API", lifespan=lifespan)
 # Enable CORS for frontend development
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5174", "http://localhost:4174", "http://127.0.0.1:5174", "http://127.0.0.1:4174"],
+    allow_origins=_cors_origins(),
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -109,7 +119,15 @@ def track_event(event: AnalyticsEventIn):
 
 @app.get("/api/health")
 def health():
-    return {"status": "ok"}
+    db = SessionLocal()
+    try:
+        db.execute(text("SELECT 1"))
+        return {"status": "ok", "db": "ok"}
+    except Exception:
+        logger.exception("Healthcheck DB probe failed")
+        return JSONResponse(status_code=503, content={"status": "degraded", "db": "error"})
+    finally:
+        db.close()
 
 
 @app.get("/api/sports")
@@ -203,18 +221,30 @@ def _recommended_period(db: Session, sport: str, season: int, fallback: int) -> 
 
 
 def _refresh_all_sports_scores() -> None:
+    any_success = False
     for adapter in SPORTS.values():
-        adapter.refresh_scores()
-        _last_updated[adapter.slug] = datetime.now(timezone.utc)
-        _scores_refresh_version_by_sport[adapter.slug] = _scores_refresh_version_by_sport.get(adapter.slug, 0) + 1
-    clear_cache()
+        try:
+            adapter.refresh_scores()
+            _last_updated[adapter.slug] = datetime.now(timezone.utc)
+            _scores_refresh_version_by_sport[adapter.slug] = _scores_refresh_version_by_sport.get(adapter.slug, 0) + 1
+            any_success = True
+        except Exception:
+            logger.exception("Score refresh failed for sport '%s'", adapter.slug)
+    if any_success:
+        clear_cache()
 
 
 def _run_all_sports_etl() -> None:
+    any_success = False
     for adapter in SPORTS.values():
-        adapter.ingest_all()
-        _last_updated[adapter.slug] = datetime.now(timezone.utc)
-    clear_cache()
+        try:
+            adapter.ingest_all()
+            _last_updated[adapter.slug] = datetime.now(timezone.utc)
+            any_success = True
+        except Exception:
+            logger.exception("Full ETL failed for sport '%s'", adapter.slug)
+    if any_success:
+        clear_cache()
 
 
 @app.get("/api/{sport}/scores/stream")

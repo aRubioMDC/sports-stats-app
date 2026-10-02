@@ -190,24 +190,33 @@ def get_matchup_context(game_id: int, sport: str = Depends(valid_sport), db: Ses
     if game is None:
         raise HTTPException(status_code=404, detail="Game not found")
 
-    home_stats = (
-        db.query(TeamSeasonStats)
-        .filter(
-            TeamSeasonStats.sport == sport,
-            TeamSeasonStats.team_id == game.home_team_id,
-            TeamSeasonStats.season == game.season,
+    previous_season = get_sport(sport).previous_season(game.season)
+
+    def _resolve_team_stats(team_id: int) -> tuple[TeamSeasonStats | None, bool]:
+        current = (
+            db.query(TeamSeasonStats)
+            .filter(
+                TeamSeasonStats.sport == sport,
+                TeamSeasonStats.team_id == team_id,
+                TeamSeasonStats.season == game.season,
+            )
+            .one_or_none()
         )
-        .one_or_none()
-    )
-    away_stats = (
-        db.query(TeamSeasonStats)
-        .filter(
-            TeamSeasonStats.sport == sport,
-            TeamSeasonStats.team_id == game.away_team_id,
-            TeamSeasonStats.season == game.season,
+        if current is not None:
+            return current, False
+        previous = (
+            db.query(TeamSeasonStats)
+            .filter(
+                TeamSeasonStats.sport == sport,
+                TeamSeasonStats.team_id == team_id,
+                TeamSeasonStats.season == previous_season,
+            )
+            .one_or_none()
         )
-        .one_or_none()
-    )
+        return previous, previous is not None
+
+    home_stats, home_used_previous = _resolve_team_stats(game.home_team_id)
+    away_stats, away_used_previous = _resolve_team_stats(game.away_team_id)
 
     stat_rows: list[StatRow] = []
     if home_stats and away_stats:
@@ -267,7 +276,7 @@ def get_matchup_context(game_id: int, sport: str = Depends(valid_sport), db: Ses
 
     return MatchupContextOut(
         game=game_to_schema(game),
-        window_mode=home_stats.window_mode if home_stats else "current",
+        window_mode=("blended" if (home_used_previous or away_used_previous) else (home_stats.window_mode if home_stats else "current")),
         stat_rows=stat_rows,
         head_to_head=head_to_head,
         moneyline=moneyline,

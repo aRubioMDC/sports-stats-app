@@ -199,16 +199,20 @@ def get_board(season: int, week: int, sport: str = Depends(valid_sport), db: Ses
     games = filter_by_sport_week(db.query(Game), sport, season, week).order_by(Game.kickoff).all()
 
     team_ids = {tid for g in games for tid in (g.home_team_id, g.away_team_id)}
+    previous_season = get_sport(sport).previous_season(season)
     
     # Batch 1: Team stats for all teams
-    stats_by_team = {
-        s.team_id: s
-        for s in db.query(TeamSeasonStats).filter(
+    stats_rows = (
+        db.query(TeamSeasonStats)
+        .filter(
             TeamSeasonStats.sport == sport,
-            TeamSeasonStats.season == season,
+            TeamSeasonStats.season.in_([previous_season, season]),
             TeamSeasonStats.team_id.in_(team_ids),
         )
-    }
+        .all()
+    )
+
+    stats_by_team_and_season = {(s.team_id, s.season): s for s in stats_rows}
     
     # Batch 2: All final games for team form calculation (pre-cache forms)
     all_final_games = (
@@ -236,7 +240,7 @@ def get_board(season: int, week: int, sport: str = Depends(valid_sport), db: Ses
         form_cache[team_id] = form
 
     def _stats_out(team_id: int) -> TeamGeneralStats | None:
-        s = stats_by_team.get(team_id)
+        s = stats_by_team_and_season.get((team_id, season)) or stats_by_team_and_season.get((team_id, previous_season))
         if s is None:
             return None
         return TeamGeneralStats(

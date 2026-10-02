@@ -6,10 +6,10 @@ from .config import settings
 engine = create_engine(
     settings.database_url,
     pool_pre_ping=True,
-    pool_size=10,  # Increased from default 5
-    max_overflow=20,  # Increased from default 10
-    pool_recycle=3600,  # Recycle connections after 1 hour
-    pool_timeout=30,
+    pool_size=settings.db_pool_size,
+    max_overflow=settings.db_max_overflow,
+    pool_recycle=settings.db_pool_recycle_seconds,
+    pool_timeout=settings.db_pool_timeout,
     echo_pool=False,
 )
 

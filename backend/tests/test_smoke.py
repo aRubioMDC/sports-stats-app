@@ -17,7 +17,9 @@ client = TestClient(app)
 def test_health():
     resp = client.get("/api/health")
     assert resp.status_code == 200
-    assert resp.json() == {"status": "ok"}
+    body = resp.json()
+    assert body["status"] == "ok"
+    assert body["db"] == "ok"
 
 
 def test_list_sports():
@@ -48,6 +50,18 @@ def test_board_returns_list():
     )
     assert resp.status_code == 200
     assert isinstance(resp.json(), list)
+
+
+def test_nhl_board_has_snapshot_stats_when_games_exist():
+    config = client.get("/api/nhl/config").json()
+    resp = client.get(
+        "/api/nhl/board",
+        params={"season": config["current_season"], "week": config["recommended_period"]},
+    )
+    assert resp.status_code == 200
+    rows = resp.json()
+    if rows:
+        assert any((row.get("home_stats") is not None) or (row.get("away_stats") is not None) for row in rows)
 
 
 def test_trend_groups_shape():

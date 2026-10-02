@@ -28,22 +28,29 @@ def ingest_team_stats_nhl(season: int) -> None:
         teams = {t.abbreviation: t for t in db.query(Team).filter(Team.sport == "nhl").all()}
         standings = get_standings_now()
 
-        rows: dict[str, dict] = {}
+        rows: dict[str, dict] = {
+            abbr: {
+                "weeks_played": 0,
+                "points_per_game": 0.0,
+                "yards_per_game": 0.0,
+                "time_of_possession_seconds_per_game": 0.0,
+                "def_sacks_total": 0.0,
+            }
+            for abbr in teams
+        }
         for row in standings:
             abbr = row["teamAbbrev"]["default"]
             if abbr not in teams:
                 continue
             games_played = row.get("gamesPlayed") or 0
-            if games_played == 0:
-                continue
             rows[abbr] = {
                 "weeks_played": games_played,
                 "points_per_game": round(row.get("pointPctg", 0.0), 3),  # real points percentage
-                "yards_per_game": round(row.get("goalFor", 0) / games_played, 2),  # real goals for/game
+                "yards_per_game": round((row.get("goalFor", 0) / games_played), 2) if games_played else 0.0,  # real goals for/game
                 "time_of_possession_seconds_per_game": round(
-                    row.get("goalDifferential", 0) / games_played, 2
-                ),  # real goal differential/game
-                "def_sacks_total": round((row.get("wins") or 0) / games_played, 3),  # real win pct
+                    (row.get("goalDifferential", 0) / games_played), 2
+                ) if games_played else 0.0,  # real goal differential/game
+                "def_sacks_total": round(((row.get("wins") or 0) / games_played), 3) if games_played else 0.0,  # real win pct
             }
 
         ranked_fields = list(STAT_FIELD_TO_RANK_FIELD.keys())
