@@ -8,6 +8,7 @@ on:
 
 env:
   REGISTRY: ghcr.io
+  CI_DATABASE_URL: ${{ secrets.CI_DATABASE_URL }}
 
 jobs:
   validate:
@@ -25,6 +26,17 @@ jobs:
 
       - name: Backend syntax check
         run: python -m compileall backend/app
+
+      - name: Backend smoke tests (optional, requires CI_DATABASE_URL secret)
+        if: env.CI_DATABASE_URL != ''
+        env:
+          DATABASE_URL: ${{ env.CI_DATABASE_URL }}
+        run: python -m pytest tests/test_smoke.py -q
+        working-directory: backend
+
+      - name: Backend smoke tests skipped
+        if: env.CI_DATABASE_URL == ''
+        run: echo "Skipping DB smoke tests because CI_DATABASE_URL is not configured."
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
