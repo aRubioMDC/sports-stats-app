@@ -64,12 +64,17 @@ export function Home() {
   
   // Use selectedWeek if set, otherwise use current week from config
   const season = configQuery.data?.current_season ?? null;
-  const week = selectedWeek ?? configQuery.data?.current_week ?? null;
+  const week =
+    selectedWeek ??
+    configQuery.data?.recommended_period ??
+    configQuery.data?.current_week ??
+    null;
   // Sports with no real "week" (NHL) navigate by single calendar day instead —
   // a 22-option week dropdown doesn't apply, and the max bound is generous
   // enough to cover a full day-granular season (~280 real days Sept-June).
   const isDayBased = configQuery.data?.period_unit === "day";
-  const maxPeriod = isDayBased ? 400 : NFL_WEEK_COUNT;
+  const minPeriod = configQuery.data?.period_min ?? (isDayBased ? 0 : 1);
+  const maxPeriod = configQuery.data?.period_max ?? (isDayBased ? 400 : NFL_WEEK_COUNT);
 
   useEffect(() => {
     if (isDayBased) {
@@ -361,8 +366,8 @@ export function Home() {
       <div className="mb-4 flex w-full items-center gap-2 rounded-xl border border-white/10 bg-[#12141a] p-1 sm:hidden">
         <button
           type="button"
-          onClick={() => setSelectedWeek(Math.max(isDayBased ? 0 : 1, (week ?? 1) - 1))}
-          disabled={week === (isDayBased ? 0 : 1)}
+          onClick={() => setSelectedWeek(Math.max(minPeriod, (week ?? minPeriod) - 1))}
+          disabled={week === minPeriod}
           aria-label="Previous period"
           className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-lg text-white/60 transition hover:bg-white/5 hover:text-white disabled:opacity-30"
         >
@@ -380,7 +385,7 @@ export function Home() {
             wrapperClassName="min-w-0 flex-1"
             className="border-transparent bg-transparent text-center hover:border-transparent"
           >
-            {Array.from({ length: NFL_WEEK_COUNT }, (_, i) => i + 1).map((w) => (
+            {Array.from({ length: Math.max(1, maxPeriod - minPeriod + 1) }, (_, i) => minPeriod + i).map((w) => (
               <option key={w} value={w}>
                 Week {w}
               </option>
@@ -389,7 +394,7 @@ export function Home() {
         )}
         <button
           type="button"
-          onClick={() => setSelectedWeek(Math.min(maxPeriod, (week ?? 1) + 1))}
+          onClick={() => setSelectedWeek(Math.min(maxPeriod, (week ?? minPeriod) + 1))}
           disabled={week === maxPeriod}
           aria-label="Next period"
           className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-lg text-white/60 transition hover:bg-white/5 hover:text-white disabled:opacity-30"
@@ -401,15 +406,15 @@ export function Home() {
       <div className="mb-4 hidden w-full items-center gap-2 rounded-xl border border-white/10 bg-[#12141a] p-1 sm:flex">
         <button
           type="button"
-          onClick={() => setSelectedWeek(Math.max(isDayBased ? 0 : 1, (week ?? 1) - 1))}
-          disabled={week === (isDayBased ? 0 : 1)}
+          onClick={() => setSelectedWeek(Math.max(minPeriod, (week ?? minPeriod) - 1))}
+          disabled={week === minPeriod}
           aria-label="Previous period"
           className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-lg text-white/60 transition hover:bg-white/5 hover:text-white disabled:opacity-30"
         >
           ‹
         </button>
-        {[(week ?? 1) - 1, week ?? 1, (week ?? 1) + 1]
-          .filter((w) => w >= (isDayBased ? 0 : 1) && w <= maxPeriod)
+        {[(week ?? minPeriod) - 1, week ?? minPeriod, (week ?? minPeriod) + 1]
+          .filter((w) => w >= minPeriod && w <= maxPeriod)
           .map((w) => (
             <button
               key={w}
@@ -426,7 +431,7 @@ export function Home() {
           ))}
         <button
           type="button"
-          onClick={() => setSelectedWeek(Math.min(maxPeriod, (week ?? 1) + 1))}
+          onClick={() => setSelectedWeek(Math.min(maxPeriod, (week ?? minPeriod) + 1))}
           disabled={week === maxPeriod}
           aria-label="Next period"
           className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-lg text-white/60 transition hover:bg-white/5 hover:text-white disabled:opacity-30"

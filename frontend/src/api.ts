@@ -13,6 +13,17 @@ export function setCurrentSport(sport: string): void {
   window.location.reload();
 }
 
+// Frontend-only display concern — new sports still render with a sensible
+// default icon until a dedicated one is added here.
+const SPORT_ICONS: Record<string, string> = {
+  nfl: "🏈",
+  nhl: "🏒",
+};
+
+export function getSportIcon(sport: string): string {
+  return SPORT_ICONS[sport] ?? "🏆";
+}
+
 import { useQuery } from '@tanstack/react-query';
 
 export interface Sport {
@@ -23,6 +34,9 @@ export interface Sport {
 export interface Config {
   current_season: number;
   current_week: number;
+  recommended_period: number;
+  period_min: number;
+  period_max: number;
   last_updated: string | null;
   period_unit: "week" | "day";
   period_anchor_date: string | null; // ISO date such that week N == this date + N days (only set when period_unit is "day")
