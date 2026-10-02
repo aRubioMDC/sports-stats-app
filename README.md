@@ -33,6 +33,11 @@ Historical one-off analysis/session reports were removed to avoid duplicate or s
 - Fase 3: refinement and cleanup of the app architecture and product polish
 - Fase 4: future gating and premium-candidate evaluation after real traction is proven
 
+Live score delivery path:
+
+- Now: short-interval polling + internal SSE push for start/score/final updates
+- Future: dedicated external live-feed subscription with provider push events (webhook/socket)
+
 ## Stack
 - Backend: Python 3.12, FastAPI, SQLAlchemy 2.0, Alembic, APScheduler
 - Frontend: React 19, Vite, TypeScript, Tailwind CSS v4

@@ -48,3 +48,19 @@ Future target (Fase 3-4):
 - Add explicit consent cookie for optional analytics
 - Keep preference storage minimal and user-controlled
 - Avoid third-party trackers by default unless explicitly enabled
+
+## Live Score Delivery Roadmap
+
+Current strategy (cost-first):
+
+- Keep current data provider and use short-interval polling for score/status updates
+- Convert those updates into internal push events for the frontend (SSE)
+- Limit live updates to game lifecycle events: start, score change, final
+- Avoid full trend recomputation on each live tick; only update game state fields
+
+Future strategy (higher fidelity):
+
+- Add a dedicated live-feed provider subscription with webhook/socket push
+- Ingest provider events directly (game started, score updated, game final)
+- Verify signatures and normalize payloads into a single internal event schema
+- Keep polling as fallback/recovery when push delivery is degraded
