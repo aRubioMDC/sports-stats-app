@@ -40,6 +40,7 @@ Files this guide builds on (already generated in this repo):
 [infra/scripts/post-deploy-smoke.sh](infra/scripts/post-deploy-smoke.sh),
 [infra/scripts/release-rehearsal.sh](infra/scripts/release-rehearsal.sh),
 [infra/scripts/rehearsal-report.sh](infra/scripts/rehearsal-report.sh),
+[infra/scripts/release-closeout.sh](infra/scripts/release-closeout.sh),
 [infra/scripts/backup-db.sh](infra/scripts/backup-db.sh),
 [.github/workflows/docker-publish.yml](.github/workflows/docker-publish.yml).
 
@@ -310,6 +311,7 @@ hitrate/
     │   ├── post-deploy-smoke.sh # runtime smoke checks via nginx (/ + /api)
     │   ├── release-rehearsal.sh # deploy/rollback/redeploy with evidence logs
     │   ├── rehearsal-report.sh  # builds markdown report from rehearsal log
+    │   ├── release-closeout.sh  # one-shot rehearsal + report + pass checks
     │   └── backup-db.sh         # nightly pg_dump of Supabase
     └── backups/                 # gitignored — local backup-db.sh output
 ```
@@ -880,6 +882,16 @@ This writes `./rehearsals/release_rehearsal_<timestamp>.md` with:
 - all rehearsal step outcomes
 - smoke check lines
 - final `docker compose ps` section
+
+One-shot closeout command (recommended):
+
+```bash
+./scripts/release-closeout.sh <known-good-rollback-tag> [forward-tag]
+```
+
+This command runs rehearsal, builds the markdown report, and fails unless:
+- report contains `Result: PASSED`
+- completed marker is present
 
 ## 32. Security best practices
 

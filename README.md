@@ -120,6 +120,8 @@ Runtime deploy safety has been strengthened with `infra/scripts/post-deploy-smok
 which is now executed automatically by both deploy and rollback scripts.
 Release rehearsal evidence can be summarized with
 `infra/scripts/rehearsal-report.sh`.
+A one-shot release validation command is available at
+`infra/scripts/release-closeout.sh`.
 
 ## Next steps and known gaps
 The project is functionally working and the refactor is in good shape, but the following
