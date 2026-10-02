@@ -72,6 +72,9 @@ npm run dev
 The Vite dev server runs on port 5173 by default and proxies the API calls to the
 backend service.
 
+In this repo the Vite config pins local dev to port `5174` and proxies `/api` to
+backend port `8001`.
+
 ## Test and validation
 
 Backend smoke tests:
@@ -86,6 +89,20 @@ Frontend build/type check:
 ```powershell
 cd frontend
 npm run build
+```
+
+Frontend unit/component tests:
+
+```powershell
+cd frontend
+npm test
+```
+
+Frontend e2e smoke tests (Playwright):
+
+```powershell
+cd frontend
+npm run test:e2e
 ```
 
 ## Business rule: small-sample blending
@@ -105,7 +122,7 @@ items remain open before calling the project closed or production-ready:
 
 - No real auth is implemented yet
 - No validated final deployment on a real server has been completed
-- No complete CI/CD pipeline with automated frontend tests is in place
+- Full production-release evidence (real deploy rehearsal + rollback proof + runtime smoke evidence) is not yet complete
 - The Fase 4 roadmap is not closed yet, including premium-candidate decisions and gating logic
 - The full refactor across all routes and layers is not considered finally complete
 - Several areas remain in active evolution rather than a single consolidated final version

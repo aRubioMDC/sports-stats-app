@@ -11,3 +11,7 @@ pip_out.log
 infra/cloudflared/creds/
 infra/backups/
 .vscode/
+playwright-report/
+test-results/
+frontend/playwright-report/
+frontend/test-results/

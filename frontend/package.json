@@ -8,6 +8,8 @@
     "build": "tsc -b && vite build",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:e2e": "playwright test",
+    "test:e2e:headed": "playwright test --headed",
     "lint": "oxlint",
     "preview": "vite preview"
   },
@@ -19,6 +21,7 @@
     "react-router-dom": "^7.18.4"
   },
   "devDependencies": {
+    "@playwright/test": "^1.63.0",
     "@tailwindcss/vite": "^4.3.3",
     "@testing-library/jest-dom": "^7.0.1",
     "@testing-library/react": "^16.3.3",
