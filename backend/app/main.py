@@ -38,7 +38,10 @@ def _cors_origins() -> list[str]:
 async def lifespan(_: FastAPI):
     # Run a full pipeline at startup before serving so fresh deploys don't open
     # with empty/uninitialized board stats.
-    _run_all_sports_etl()
+    if settings.etl_blocking_startup:
+        _run_all_sports_etl()
+    else:
+        scheduler.add_job(_run_all_sports_etl, id="etl_run_all_initial", replace_existing=True)
 
     # Keep two cadences going:
     # - scores/status only, frequent (cheap: one schedule pull, catches live results fast)

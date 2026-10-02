@@ -17,6 +17,8 @@ class Settings(BaseSettings):
     small_sample_week_threshold: int = 4
     cors_origins: str = "http://localhost:5174,http://localhost:4174,http://127.0.0.1:5174,http://127.0.0.1:4174"
     frontend_dist_dir: str = "../frontend/dist"
+    # False = serve immediately and run the startup ETL in the background (dev).
+    etl_blocking_startup: bool = True
 
 
 settings = Settings()
