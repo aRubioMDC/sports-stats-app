@@ -186,8 +186,8 @@ function ModelOutlook({
     <section aria-labelledby="game-outlook-title" className="rounded-xl border border-white/10 bg-[#12141a]">
       <div className="lg:grid lg:grid-cols-2">
       <div className="p-4">
-        <div className="flex items-start justify-between gap-3">
-          <h2 id="game-outlook-title" className="text-sm font-semibold uppercase tracking-wide text-white/50">
+        <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-1">
+          <h2 id="game-outlook-title" className="whitespace-nowrap text-sm font-semibold uppercase tracking-wide text-white/50">
             Game Outlook
           </h2>
           {market?.home_win != null && (

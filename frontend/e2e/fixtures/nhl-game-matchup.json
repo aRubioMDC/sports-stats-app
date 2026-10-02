@@ -1,0 +1,324 @@
+{
+    "game":  {
+                 "id":  6046,
+                 "season":  20262027,
+                 "week":  31,
+                 "kickoff":  "2026-10-02T22:30:00+00:00",
+                 "home_team":  {
+                                   "id":  50,
+                                   "abbreviation":  "DET",
+                                   "name":  "Detroit Red Wings",
+                                   "primary_color":  "#000000",
+                                   "logo_url":  ""
+                               },
+                 "away_team":  {
+                                   "id":  68,
+                                   "abbreviation":  "NYR",
+                                   "name":  "New York Rangers",
+                                   "primary_color":  "#000000",
+                                   "logo_url":  ""
+                               },
+                 "home_score":  null,
+                 "away_score":  null,
+                 "status":  "scheduled"
+             },
+    "window_mode":  "blended",
+    "stat_rows":  [
+                      {
+                          "label":  "Points Percentage",
+                          "home_value":  0.6,
+                          "home_rank":  18,
+                          "away_value":  0.5,
+                          "away_rank":  29,
+                          "leader":  "home"
+                      },
+                      {
+                          "label":  "Goals For Per Game",
+                          "home_value":  2.9,
+                          "home_rank":  22,
+                          "away_value":  2.9,
+                          "away_rank":  23,
+                          "leader":  "home"
+                      },
+                      {
+                          "label":  "Goal Differential Per Game",
+                          "home_value":  -0.2,
+                          "home_rank":  20,
+                          "away_value":  -0.1,
+                          "away_rank":  18,
+                          "leader":  "away"
+                      },
+                      {
+                          "label":  "Win Percentage",
+                          "home_value":  0.5,
+                          "home_rank":  17,
+                          "away_value":  0.4,
+                          "away_rank":  28,
+                          "leader":  "home"
+                      }
+                  ],
+    "head_to_head":  [
+                         {
+                             "season":  20252026,
+                             "week":  215,
+                             "kickoff":  "2026-04-04T16:30:00+00:00",
+                             "home_team":  "NYR",
+                             "away_team":  "DET",
+                             "home_score":  4,
+                             "away_score":  1
+                         },
+                         {
+                             "season":  20252026,
+                             "week":  76,
+                             "kickoff":  "2025-11-17T00:00:00+00:00",
+                             "home_team":  "NYR",
+                             "away_team":  "DET",
+                             "home_score":  1,
+                             "away_score":  2
+                         },
+                         {
+                             "season":  20252026,
+                             "week":  67,
+                             "kickoff":  "2025-11-08T00:00:00+00:00",
+                             "home_team":  "DET",
+                             "away_team":  "NYR",
+                             "home_score":  1,
+                             "away_score":  4
+                         }
+                     ],
+    "moneyline":  {
+                      "home":  {
+                                   "best_price":  -121.0,
+                                   "best_bookmaker":  "lowvig",
+                                   "fair_prob":  0.537
+                               },
+                      "away":  {
+                                   "best_price":  111.0,
+                                   "best_bookmaker":  "mybookieag",
+                                   "fair_prob":  0.463
+                               }
+                  },
+    "spread":  {
+                   "point":  -1.5,
+                   "home":  {
+                                "best_price":  200.0,
+                                "best_bookmaker":  "betrivers",
+                                "fair_prob":  null
+                            },
+                   "away":  {
+                                "best_price":  -222.0,
+                                "best_bookmaker":  "mybookieag",
+                                "fair_prob":  null
+                            }
+               },
+    "total":  {
+                  "point":  6.0,
+                  "over":  {
+                               "best_price":  -101.0,
+                               "best_bookmaker":  "lowvig",
+                               "fair_prob":  0.486
+                           },
+                  "under":  {
+                                "best_price":  -115.0,
+                                "best_bookmaker":  "betmgm",
+                                "fair_prob":  0.514
+                            }
+              },
+    "division":  "Atlantic",
+    "standings":  [
+                      {
+                          "team":  "BOS",
+                          "logo_url":  "",
+                          "primary_color":  "#000000",
+                          "wins":  1,
+                          "losses":  0,
+                          "ties":  0,
+                          "pct":  1.0,
+                          "is_in_game":  false
+                      },
+                      {
+                          "team":  "MTL",
+                          "logo_url":  "",
+                          "primary_color":  "#000000",
+                          "wins":  1,
+                          "losses":  0,
+                          "ties":  0,
+                          "pct":  1.0,
+                          "is_in_game":  false
+                      },
+                      {
+                          "team":  "FLA",
+                          "logo_url":  "",
+                          "primary_color":  "#000000",
+                          "wins":  1,
+                          "losses":  1,
+                          "ties":  0,
+                          "pct":  0.5,
+                          "is_in_game":  false
+                      },
+                      {
+                          "team":  "TOR",
+                          "logo_url":  "",
+                          "primary_color":  "#000000",
+                          "wins":  1,
+                          "losses":  1,
+                          "ties":  0,
+                          "pct":  0.5,
+                          "is_in_game":  false
+                      },
+                      {
+                          "team":  "BUF",
+                          "logo_url":  "",
+                          "primary_color":  "#000000",
+                          "wins":  0,
+                          "losses":  1,
+                          "ties":  0,
+                          "pct":  0.0,
+                          "is_in_game":  false
+                      },
+                      {
+                          "team":  "DET",
+                          "logo_url":  "",
+                          "primary_color":  "#000000",
+                          "wins":  0,
+                          "losses":  0,
+                          "ties":  0,
+                          "pct":  0.0,
+                          "is_in_game":  true
+                      },
+                      {
+                          "team":  "OTT",
+                          "logo_url":  "",
+                          "primary_color":  "#000000",
+                          "wins":  0,
+                          "losses":  0,
+                          "ties":  0,
+                          "pct":  0.0,
+                          "is_in_game":  false
+                      },
+                      {
+                          "team":  "TBL",
+                          "logo_url":  "",
+                          "primary_color":  "#000000",
+                          "wins":  0,
+                          "losses":  1,
+                          "ties":  0,
+                          "pct":  0.0,
+                          "is_in_game":  false
+                      }
+                  ],
+    "home_recent_games":  [
+                              {
+                                  "season":  20252026,
+                                  "week":  226,
+                                  "kickoff":  "2026-04-15T23:00:00+00:00",
+                                  "opponent":  "FLA",
+                                  "opponent_logo_url":  "",
+                                  "is_home":  false,
+                                  "result":  "L",
+                                  "team_score":  1,
+                                  "opponent_score":  8
+                              },
+                              {
+                                  "season":  20252026,
+                                  "week":  224,
+                                  "kickoff":  "2026-04-13T23:00:00+00:00",
+                                  "opponent":  "TBL",
+                                  "opponent_logo_url":  "",
+                                  "is_home":  false,
+                                  "result":  "L",
+                                  "team_score":  3,
+                                  "opponent_score":  4
+                              },
+                              {
+                                  "season":  20252026,
+                                  "week":  222,
+                                  "kickoff":  "2026-04-11T21:00:00+00:00",
+                                  "opponent":  "NJD",
+                                  "opponent_logo_url":  "",
+                                  "is_home":  true,
+                                  "result":  "L",
+                                  "team_score":  3,
+                                  "opponent_score":  5
+                              },
+                              {
+                                  "season":  20252026,
+                                  "week":  220,
+                                  "kickoff":  "2026-04-09T23:00:00+00:00",
+                                  "opponent":  "PHI",
+                                  "opponent_logo_url":  "",
+                                  "is_home":  true,
+                                  "result":  "W",
+                                  "team_score":  6,
+                                  "opponent_score":  3
+                              },
+                              {
+                                  "season":  20252026,
+                                  "week":  218,
+                                  "kickoff":  "2026-04-07T23:00:00+00:00",
+                                  "opponent":  "CBJ",
+                                  "opponent_logo_url":  "",
+                                  "is_home":  true,
+                                  "result":  "L",
+                                  "team_score":  3,
+                                  "opponent_score":  4
+                              }
+                          ],
+    "away_recent_games":  [
+                              {
+                                  "season":  20262027,
+                                  "week":  30,
+                                  "kickoff":  "2026-10-01T23:00:00+00:00",
+                                  "opponent":  "TBL",
+                                  "opponent_logo_url":  "",
+                                  "is_home":  true,
+                                  "result":  "W",
+                                  "team_score":  5,
+                                  "opponent_score":  1
+                              },
+                              {
+                                  "season":  20262027,
+                                  "week":  28,
+                                  "kickoff":  "2026-09-30T00:00:00+00:00",
+                                  "opponent":  "BOS",
+                                  "opponent_logo_url":  "",
+                                  "is_home":  false,
+                                  "result":  "L",
+                                  "team_score":  0,
+                                  "opponent_score":  3
+                              },
+                              {
+                                  "season":  20252026,
+                                  "week":  226,
+                                  "kickoff":  "2026-04-15T23:00:00+00:00",
+                                  "opponent":  "TBL",
+                                  "opponent_logo_url":  "",
+                                  "is_home":  false,
+                                  "result":  "W",
+                                  "team_score":  4,
+                                  "opponent_score":  2
+                              },
+                              {
+                                  "season":  20252026,
+                                  "week":  224,
+                                  "kickoff":  "2026-04-13T23:00:00+00:00",
+                                  "opponent":  "FLA",
+                                  "opponent_logo_url":  "",
+                                  "is_home":  false,
+                                  "result":  "L",
+                                  "team_score":  2,
+                                  "opponent_score":  3
+                              },
+                              {
+                                  "season":  20252026,
+                                  "week":  222,
+                                  "kickoff":  "2026-04-11T21:00:00+00:00",
+                                  "opponent":  "DAL",
+                                  "opponent_logo_url":  "",
+                                  "is_home":  false,
+                                  "result":  "L",
+                                  "team_score":  0,
+                                  "opponent_score":  2
+                              }
+                          ]
+}

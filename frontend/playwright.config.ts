@@ -24,12 +24,24 @@ export default defineConfig({
         {
           name: 'chromium',
           use: { ...devices['Desktop Chrome'] },
+          testIgnore: /\.mobile\.spec\.ts$/,
+        },
+        {
+          name: 'mobile-chrome',
+          use: { ...devices['Pixel 5'] },
+          testMatch: /\.mobile\.spec\.ts$/,
         },
       ]
     : [
         {
           name: 'edge',
           use: { ...devices['Desktop Edge'], channel: 'msedge' },
+          testIgnore: /\.mobile\.spec\.ts$/,
+        },
+        {
+          name: 'mobile-edge',
+          use: { ...devices['Pixel 5'], channel: 'msedge' },
+          testMatch: /\.mobile\.spec\.ts$/,
         },
       ],
 });

@@ -120,7 +120,7 @@ export function GameDetail() {
       <div className="mb-6 flex gap-2 border-b border-white/10">
         <button
           onClick={() => setTab("overview")}
-          className={`px-4 py-2 text-sm font-semibold transition ${
+          className={`whitespace-nowrap px-3 py-2 text-sm font-semibold transition sm:px-4 ${
             tab === "overview"
               ? "border-b-2 border-emerald-400 text-white"
               : "text-white/55 hover:text-white"
@@ -131,7 +131,7 @@ export function GameDetail() {
         {/* Fase 4 candidate: PREMIUM_CANDIDATE_FEATURES=["game_analytics"] on the backend — no gating yet. */}
         <button
           onClick={() => setTab("analytics")}
-          className={`px-4 py-2 text-sm font-semibold transition ${
+          className={`whitespace-nowrap px-3 py-2 text-sm font-semibold transition sm:px-4 ${
             tab === "analytics"
               ? "border-b-2 border-emerald-400 text-white"
               : "text-white/55 hover:text-white"
@@ -141,13 +141,13 @@ export function GameDetail() {
         </button>
         <button
           onClick={() => setTab("trends")}
-          className={`px-4 py-2 text-sm font-semibold transition ${
+          className={`whitespace-nowrap px-3 py-2 text-sm font-semibold transition sm:px-4 ${
             tab === "trends"
               ? "border-b-2 border-emerald-400 text-white"
               : "text-white/55 hover:text-white"
           }`}
         >
-          Trends & Props{gamePropRows.length > 0 && ` (${gamePropRows.length})`}
+          Trends<span className="hidden sm:inline"> & Props</span>{gamePropRows.length > 0 && ` (${gamePropRows.length})`}
         </button>
       </div>
 
@@ -374,7 +374,7 @@ export function GameDetail() {
                   <div key={pi} className="rounded-xl border border-white/10 bg-[#12141a] p-4">
                     <div className="flex flex-col gap-2">
                       {parlay.legs.map((leg, li) => (
-                        <div key={li} className="flex items-center justify-between gap-3 rounded-lg bg-white/5 px-3 py-2 text-sm">
+                        <div key={li} className="flex flex-col gap-1 rounded-lg bg-white/5 px-3 py-2 text-sm sm:flex-row sm:items-center sm:justify-between sm:gap-3">
                           <div>
                             <span className="font-semibold text-white">{leg.player_name}</span>
                             <span className="ml-1 text-white/50">

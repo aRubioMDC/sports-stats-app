@@ -3,14 +3,14 @@ import { formatKickoff } from "../lib/period";
 
 function TeamSide({ team, align }: { team: Team; align: "left" | "right" }) {
   return (
-    <div className={`flex min-w-0 items-center gap-3 ${align === "right" ? "flex-row-reverse text-right" : ""}`}>
+    <div className={`flex min-w-0 items-center gap-2 sm:gap-3 ${align === "right" ? "flex-row-reverse text-right" : ""}`}>
       {team.logo_url ? (
-        <img src={team.logo_url} alt={team.abbreviation} className="h-11 w-11 shrink-0 object-contain sm:h-14 sm:w-14" />
+        <img src={team.logo_url} alt={team.abbreviation} className="h-9 w-9 shrink-0 object-contain sm:h-14 sm:w-14" />
       ) : (
-        <span className="h-11 w-11 shrink-0 rounded-full sm:h-14 sm:w-14" style={{ backgroundColor: team.primary_color }} />
+        <span className="h-9 w-9 shrink-0 rounded-full sm:h-14 sm:w-14" style={{ backgroundColor: team.primary_color }} />
       )}
       <div className="min-w-0">
-        <div className="text-2xl font-black leading-none text-white sm:text-3xl">{team.abbreviation}</div>
+        <div className="text-xl font-black leading-none text-white sm:text-3xl">{team.abbreviation}</div>
         <div className="mt-1 hidden truncate text-xs text-white/50 sm:block">{team.name}</div>
       </div>
     </div>
@@ -36,7 +36,7 @@ export function GameHeader({ game, blendedWindow }: { game: Game; blendedWindow:
         )}
       </div>
 
-      <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3 sm:gap-6">
+      <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 sm:gap-6">
         <TeamSide team={game.away_team} align="left" />
         <div className="flex flex-col items-center gap-1.5 text-center">
           {isFinal && game.away_score != null && game.home_score != null ? (

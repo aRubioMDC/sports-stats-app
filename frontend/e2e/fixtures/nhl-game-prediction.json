@@ -1,0 +1,138 @@
+{
+    "available":  true,
+    "reason":  null,
+    "model":  "attack-defense ratings with Poisson goals",
+    "projected_home":  3.0,
+    "projected_away":  2.9,
+    "projected_total":  5.9,
+    "league_games":  713.0,
+    "home_games":  41.0,
+    "away_games":  43.0,
+    "low_sample":  false,
+    "win":  {
+                "home":  0.51,
+                "away":  0.49
+            },
+    "margin_buckets":  [
+                           {
+                               "label":  "1",
+                               "home":  0.238,
+                               "away":  0.235
+                           },
+                           {
+                               "label":  "2",
+                               "home":  0.118,
+                               "away":  0.114
+                           },
+                           {
+                               "label":  "3+",
+                               "home":  0.153,
+                               "away":  0.142
+                           }
+                       ],
+    "totals":  [
+                   {
+                       "line":  3.5,
+                       "over":  0.843,
+                       "under":  0.157
+                   },
+                   {
+                       "line":  4.5,
+                       "over":  0.707,
+                       "under":  0.293
+                   },
+                   {
+                       "line":  5.5,
+                       "over":  0.545,
+                       "under":  0.455
+                   },
+                   {
+                       "line":  6.0,
+                       "over":  0.384,
+                       "under":  0.616
+                   },
+                   {
+                       "line":  6.5,
+                       "over":  0.384,
+                       "under":  0.616
+                   },
+                   {
+                       "line":  7.5,
+                       "over":  0.248,
+                       "under":  0.752
+                   }
+               ],
+    "home_team_totals":  [
+                             {
+                                 "line":  1.5,
+                                 "over":  0.801,
+                                 "under":  0.199
+                             },
+                             {
+                                 "line":  2.5,
+                                 "over":  0.577,
+                                 "under":  0.423
+                             },
+                             {
+                                 "line":  3.5,
+                                 "over":  0.353,
+                                 "under":  0.647
+                             }
+                         ],
+    "away_team_totals":  [
+                             {
+                                 "line":  1.5,
+                                 "over":  0.792,
+                                 "under":  0.208
+                             },
+                             {
+                                 "line":  2.5,
+                                 "over":  0.564,
+                                 "under":  0.436
+                             },
+                             {
+                                 "line":  3.5,
+                                 "over":  0.34,
+                                 "under":  0.66
+                             }
+                         ],
+    "spreads":  [
+                    {
+                        "home_line":  -2.5,
+                        "home_cover":  0.153,
+                        "away_cover":  0.847
+                    },
+                    {
+                        "home_line":  -1.5,
+                        "home_cover":  0.271,
+                        "away_cover":  0.729
+                    },
+                    {
+                        "home_line":  -0.5,
+                        "home_cover":  0.51,
+                        "away_cover":  0.49
+                    },
+                    {
+                        "home_line":  0.5,
+                        "home_cover":  0.51,
+                        "away_cover":  0.49
+                    },
+                    {
+                        "home_line":  1.5,
+                        "home_cover":  0.744,
+                        "away_cover":  0.256
+                    },
+                    {
+                        "home_line":  2.5,
+                        "home_cover":  0.858,
+                        "away_cover":  0.142
+                    }
+                ],
+    "market":  {
+                   "home_win":  0.537,
+                   "away_win":  0.463,
+                   "total_point":  6.0,
+                   "total_over":  0.486,
+                   "spread_point":  -1.5
+               }
+}
