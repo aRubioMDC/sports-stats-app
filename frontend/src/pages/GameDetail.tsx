@@ -1,33 +1,35 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
-import { api, useBoard, useCheatsheet, useConfig, useMatchup, useParlays } from "../api";
+import { api, useBoard, useCheatsheet, useConfig, useMatchup, useParlays, usePrediction } from "../api";
 import { MatchupComparisonCard } from "../components/MatchupComparisonCard";
 import { HeadToHeadTable } from "../components/HeadToHeadTable";
 import { CheatsheetRowCard } from "../components/CheatsheetRowCard";
+import { GameHeader } from "../components/GameHeader";
+import { GameOutlook } from "../components/GameOutlook";
 import { SignalMark } from "../components/SignalMark";
-import { ProbBar } from "../components/ProbBar";
 import { TeamSnapshotCard } from "../components/TeamSnapshotCard";
 import { formatMarketTrendLine, formatTrendLine, pctColorClass } from "../lib/statLabels";
-import { formatDateInAppTimezone, seasonStartYear } from "../lib/period";
+import { formatDateInAppTimezone } from "../lib/period";
 import { useTeamLogos } from "../lib/useTeamLogos";
 
-type Tab = "overview" | "trends";
+type Tab = "overview" | "analytics" | "trends";
 
-function formatPrice(price: number): string {
-  return price > 0 ? `+${price}` : `${price}`;
+function parseTab(value: string | null): Tab {
+  return value === "trends" || value === "analytics" ? value : "overview";
 }
 
 export function GameDetail() {
   const { gameId } = useParams<{ gameId: string }>();
   const numericGameId = gameId ? Number(gameId) : null;
   const [searchParams, setSearchParams] = useSearchParams();
-  const tab: Tab = searchParams.get("tab") === "trends" ? "trends" : "overview";
+  const tab: Tab = parseTab(searchParams.get("tab"));
   const queryClient = useQueryClient();
 
   const [recentGamesTeam, setRecentGamesTeam] = useState<"home" | "away">("home");
 
   const matchupQuery = useMatchup(numericGameId);
+  const predictionQuery = usePrediction(numericGameId, tab === "analytics");
   const context = matchupQuery.data ?? null;
   const error = matchupQuery.isError ? "Could not load matchup context." : null;
 
@@ -55,6 +57,7 @@ export function GameDetail() {
 
     const onScoresRefresh = () => {
       queryClient.invalidateQueries({ queryKey: ["matchup", numericGameId] });
+      queryClient.invalidateQueries({ queryKey: ["prediction", numericGameId] });
       queryClient.invalidateQueries({ queryKey: ["board", game.season, game.week] });
       queryClient.invalidateQueries({ queryKey: ["games", game.season, game.week] });
       queryClient.invalidateQueries({ queryKey: ["config"] });
@@ -108,15 +111,8 @@ export function GameDetail() {
         <span>Back to schedule</span>
       </Link>
 
-      <div className="mb-6 mt-4 flex items-center justify-between">
-        <h1 className="text-xl font-bold text-white">
-          {game.away_team.abbreviation} @ {game.home_team.abbreviation}
-        </h1>
-        {window_mode === "blended" && (
-          <span className="rounded-full bg-amber-500/20 px-3 py-1 text-xs font-semibold text-amber-300">
-            Early season — stats blended with last season
-          </span>
-        )}
+      <div className="mb-6 mt-4">
+        <GameHeader game={game} blendedWindow={window_mode === "blended"} />
       </div>
 
       {/* Tab bar — mirrors NFL.com Game Center's OVERVIEW/STATS tabs and
@@ -131,6 +127,17 @@ export function GameDetail() {
           }`}
         >
           Overview
+        </button>
+        {/* Fase 4 candidate: PREMIUM_CANDIDATE_FEATURES=["game_analytics"] on the backend — no gating yet. */}
+        <button
+          onClick={() => setTab("analytics")}
+          className={`px-4 py-2 text-sm font-semibold transition ${
+            tab === "analytics"
+              ? "border-b-2 border-emerald-400 text-white"
+              : "text-white/55 hover:text-white"
+          }`}
+        >
+          Analytics
         </button>
         <button
           onClick={() => setTab("trends")}
@@ -216,71 +223,6 @@ export function GameDetail() {
             )}
           </div>
 
-          {/* ValueStats-style odds panel — real sportsbook prices (best across the
-              books we track) plus de-vigged consensus probabilities, never a guess. */}
-          {(context.moneyline || context.spread || context.total) && (
-            <div className="rounded-xl border border-white/10 bg-[#12141a] p-4">
-              <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-white/50">Real Market Odds</h2>
-
-              {context.moneyline?.home && context.moneyline?.away && (
-                <div className="mb-4">
-                  <div className="mb-2 text-xs font-semibold text-white/40">Moneyline</div>
-                  {context.moneyline.home.fair_prob != null && (
-                    <ProbBar
-                      label={`${game.home_team.abbreviation} to win`}
-                      pct={context.moneyline.home.fair_prob}
-                      color={game.home_team.primary_color}
-                    />
-                  )}
-                  {context.moneyline.away.fair_prob != null && (
-                    <ProbBar
-                      label={`${game.away_team.abbreviation} to win`}
-                      pct={context.moneyline.away.fair_prob}
-                      color={game.away_team.primary_color}
-                    />
-                  )}
-                  <div className="mt-2 flex justify-between text-xs text-white/50">
-                    <span>
-                      {game.home_team.abbreviation} best: {formatPrice(context.moneyline.home.best_price)} (
-                      {context.moneyline.home.best_bookmaker})
-                    </span>
-                    <span>
-                      {game.away_team.abbreviation} best: {formatPrice(context.moneyline.away.best_price)} (
-                      {context.moneyline.away.best_bookmaker})
-                    </span>
-                  </div>
-                </div>
-              )}
-
-              {context.spread?.point != null && context.spread.home && context.spread.away && (
-                <div className="mb-4 border-t border-white/5 pt-3">
-                  <div className="mb-2 text-xs font-semibold text-white/40">Spread</div>
-                  <div className="flex justify-between text-sm text-white/80">
-                    <span>
-                      {game.home_team.abbreviation} {context.spread.point > 0 ? "+" : ""}
-                      {context.spread.point} ({formatPrice(context.spread.home.best_price)})
-                    </span>
-                    <span>
-                      {game.away_team.abbreviation} {-context.spread.point > 0 ? "+" : ""}
-                      {-context.spread.point} ({formatPrice(context.spread.away.best_price)})
-                    </span>
-                  </div>
-                </div>
-              )}
-
-              {context.total?.point != null && context.total.over && context.total.under && (
-                <div className="border-t border-white/5 pt-3">
-                  <div className="mb-2 text-xs font-semibold text-white/40">Total {context.total.point}</div>
-                  {context.total.over.fair_prob != null && (
-                    <ProbBar label="Over" pct={context.total.over.fair_prob} color="#34d399" />
-                  )}
-                  {context.total.under.fair_prob != null && (
-                    <ProbBar label="Under" pct={context.total.under.fair_prob} color="#fb7185" />
-                  )}
-                </div>
-              )}
-            </div>
-          )}
           </div>
 
           <div className="flex flex-col gap-6 lg:col-span-1">
@@ -388,40 +330,22 @@ export function GameDetail() {
             </div>
           )}
 
-          {/* NFL.com-style "Previous Matchup" — the single most recent real H2H result. */}
-          {head_to_head.length > 0 && (
-            <div className="rounded-xl border border-white/10 bg-[#12141a] p-4">
-              <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-white/50">Previous Matchup</h2>
-              <div className="flex items-center justify-between text-sm">
-                <span className="font-semibold text-white">
-                  {head_to_head[0].away_team} @ {head_to_head[0].home_team}
-                </span>
-                <span className="text-white/40">
-                  {isDayBased && head_to_head[0].kickoff
-                    ? formatDateInAppTimezone(new Date(head_to_head[0].kickoff), {
-                        year: "numeric",
-                        month: "short",
-                        day: "numeric",
-                      })
-                    : `${head_to_head[0].season} · Wk ${head_to_head[0].week}`}
-                </span>
-              </div>
-              <div className="mt-1 flex items-baseline justify-between">
-                <span className="text-lg font-black text-white">
-                  {head_to_head[0].away_score} - {head_to_head[0].home_score}
-                </span>
-                <span className="text-xs text-white/40">
-                  {(() => {
-                    const seasonsAgo = seasonStartYear(game.season) - seasonStartYear(head_to_head[0].season);
-                    if (seasonsAgo <= 0) return "This season";
-                    if (seasonsAgo === 1) return "Last season";
-                    return `${seasonsAgo} seasons ago`;
-                  })()}
-                </span>
-              </div>
-            </div>
-          )}
+          {/* NFL.com-style head-to-head: every real previous meeting, most recent first. */}
+          <div className="rounded-xl border border-white/10 bg-[#12141a] p-4">
+            <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-white/50">Head to Head</h2>
+            <HeadToHeadTable results={head_to_head} isDayBased={isDayBased} />
           </div>
+          </div>
+        </div>
+      )}
+
+      {tab === "analytics" && (
+        <div>
+          {/* Model probabilities fused with the real de-vigged market prices; falls back to market-only odds. */}
+          <GameOutlook game={game} context={context} prediction={predictionQuery.data} isLoading={predictionQuery.isLoading} />
+          {!predictionQuery.isLoading && !predictionQuery.data?.available && !context.moneyline && !context.spread && !context.total && (
+            <p className="text-white/40">No model or market analytics are available for this game yet.</p>
+          )}
         </div>
       )}
 
@@ -440,46 +364,35 @@ export function GameDetail() {
             <p className="mb-8 text-white/40">No real prop signals available for this game yet.</p>
           )}
 
-          <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-            <div className="lg:col-span-2">
-              {parlaysQuery.data && parlaysQuery.data.length > 0 && (
-                <>
-                  <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-white/50">Parlays</h2>
-                  <div className="flex flex-col gap-3">
-                    {parlaysQuery.data.map((parlay, pi) => (
-                      <div key={pi} className="rounded-xl border border-white/10 bg-[#12141a] p-4">
-                        <div className="flex flex-col gap-2">
-                          {parlay.legs.map((leg, li) => (
-                            <div key={li} className="flex items-center justify-between rounded-lg bg-white/5 px-3 py-2 text-sm">
-                              <div>
-                                <span className="font-semibold text-white">{leg.player_name}</span>
-                                <span className="ml-1 text-white/50">
-                                  {formatTrendLine(leg.stat_name, leg.threshold, leg.direction)}
-                                </span>
-                              </div>
-                              <span className="text-xs font-semibold text-emerald-400">
-                                Hit in {leg.hits} of last {leg.games} games
-                              </span>
-                            </div>
-                          ))}
+          {parlaysQuery.data && parlaysQuery.data.length > 0 && (
+            <>
+              <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-white/50">Parlays</h2>
+              <div className="grid grid-cols-1 gap-3 lg:grid-cols-2 xl:grid-cols-3">
+                {parlaysQuery.data.map((parlay, pi) => (
+                  <div key={pi} className="rounded-xl border border-white/10 bg-[#12141a] p-4">
+                    <div className="flex flex-col gap-2">
+                      {parlay.legs.map((leg, li) => (
+                        <div key={li} className="flex items-center justify-between gap-3 rounded-lg bg-white/5 px-3 py-2 text-sm">
+                          <div>
+                            <span className="font-semibold text-white">{leg.player_name}</span>
+                            <span className="ml-1 text-white/50">
+                              {formatTrendLine(leg.stat_name, leg.threshold, leg.direction)}
+                            </span>
+                          </div>
+                          <span className="shrink-0 text-xs font-semibold text-emerald-400">
+                            Hit in {leg.hits} of last {leg.games} games
+                          </span>
                         </div>
-                        <div className="mt-3 text-xs font-semibold text-white/40">
-                          Each leg hit in {parlay.summary_hits} of last {parlay.summary_games} games
-                        </div>
-                      </div>
-                    ))}
+                      ))}
+                    </div>
+                    <div className="mt-3 text-xs font-semibold text-white/40">
+                      Each leg hit in {parlay.summary_hits} of last {parlay.summary_games} games
+                    </div>
                   </div>
-                </>
-              )}
-            </div>
-
-            <div className="lg:col-span-1">
-              <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-white/50">Head to Head</h2>
-              <div className="rounded-xl border border-white/10 bg-[#12141a] p-4">
-                <HeadToHeadTable results={head_to_head} isDayBased={isDayBased} />
+                ))}
               </div>
-            </div>
-          </div>
+            </>
+          )}
         </div>
       )}
     </div>

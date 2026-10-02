@@ -10,6 +10,17 @@ export function formatDateTimeInAppTimezone(date: Date, options: Intl.DateTimeFo
   return date.toLocaleString(undefined, { ...options, timeZone: APP_TIMEZONE });
 }
 
+export function formatKickoff(kickoff: string | null): string {
+  if (!kickoff) return "TBD";
+  return formatDateTimeInAppTimezone(new Date(kickoff), {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
 /** Turns a raw `week` bucket into the real calendar date it represents, for
  * sports with no native week concept (period_unit === "day") — null when the
  * sport doesn't work this way (e.g. NFL) or the anchor isn't available yet. */

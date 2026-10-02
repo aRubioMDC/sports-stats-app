@@ -1,21 +1,9 @@
 import { Link } from "react-router-dom";
 import type { BoardGame } from "../api";
-import { formatDateTimeInAppTimezone } from "../lib/period";
+import { formatKickoff } from "../lib/period";
 import { formatMarketTrendLine, pctColorClass } from "../lib/statLabels";
 import { SignalMark } from "./SignalMark";
 import { FormDots } from "./FormDots";
-
-function formatKickoff(kickoff: string | null): string {
-  if (!kickoff) return "TBD";
-  const date = new Date(kickoff);
-  return formatDateTimeInAppTimezone(date, {
-    weekday: "short",
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  });
-}
 
 function TeamColumn({
   abbreviation,

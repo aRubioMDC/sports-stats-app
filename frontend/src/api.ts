@@ -141,6 +141,38 @@ export interface MatchupContext {
   away_recent_games: RecentGame[];
 }
 
+export interface OverUnderLine {
+  line: number;
+  over: number;
+  under: number;
+}
+
+export interface GamePrediction {
+  available: boolean;
+  reason: string | null;
+  model: string | null;
+  projected_home: number | null;
+  projected_away: number | null;
+  projected_total: number | null;
+  league_games: number;
+  home_games: number; // weighted real games behind each team's rating
+  away_games: number;
+  low_sample: boolean;
+  win: { home: number; away: number } | null;
+  margin_buckets: Array<{ label: string; home: number; away: number }>;
+  totals: OverUnderLine[];
+  home_team_totals: OverUnderLine[];
+  away_team_totals: OverUnderLine[];
+  spreads: Array<{ home_line: number; home_cover: number; away_cover: number }>;
+  market: {
+    home_win: number | null;
+    away_win: number | null;
+    total_point: number | null;
+    total_over: number | null;
+    spread_point: number | null;
+  } | null;
+}
+
 export interface CheatsheetRow {
   player_id?: number | null; // null for team-level rows (moneyline/team totals)
   player_name: string;
@@ -257,6 +289,7 @@ export const api = {
   getGames: (season: number, week: number) =>
     getJson<Game[]>(`/${getCurrentSport()}/games?season=${season}&week=${week}`),
   getMatchup: (gameId: number) => getJson<MatchupContext>(`/${getCurrentSport()}/games/${gameId}/matchup`),
+  getPrediction: (gameId: number) => getJson<GamePrediction>(`/${getCurrentSport()}/games/${gameId}/prediction`),
   getCheatsheet: (minHitRate = 1.0, minGames = 3, season?: number, week?: number, daysBack?: number) => {
     const params = new URLSearchParams({
       min_hit_rate: minHitRate.toString(),
@@ -354,6 +387,15 @@ export function useMatchup(gameId: number | null) {
     queryKey: ['matchup', gameId],
     queryFn: () => (gameId !== null ? api.getMatchup(gameId) : Promise.reject('No gameId')),
     enabled: gameId !== null,
+    staleTime: 120000, // 2 minutes
+  });
+}
+
+export function usePrediction(gameId: number | null, enabled = true) {
+  return useQuery({
+    queryKey: ['prediction', gameId],
+    queryFn: () => (gameId !== null ? api.getPrediction(gameId) : Promise.reject('No gameId')),
+    enabled: gameId !== null && enabled,
     staleTime: 120000, // 2 minutes
   });
 }
