@@ -9,6 +9,7 @@ filter to apply.
 
 from collections import defaultdict
 
+from ..config import settings
 from ..db import SessionLocal
 from ..models import HockeyPlayerGameStat, Player, PlayerTrendSignal
 from .compute_trends import LINE_PERCENTILES, _walk_forward_threshold
@@ -40,7 +41,12 @@ def compute_trends_nhl(current_season: int) -> None:
             games_played = sum(1 for g in all_logs if g.season == current_season)
             # NHL season ids are dual-year (20262027), so the previous season is
             # current_season - 10001 (20252026), not current_season - 1.
-            window = get_stat_window(current_season, games_played, current_season - 10001)
+            window = get_stat_window(
+                current_season,
+                games_played,
+                current_season - 10001,
+                settings.small_sample_games_threshold_nhl,
+            )
             game_logs = [g for g in all_logs if g.season in window.seasons_included]
             if not game_logs:
                 continue

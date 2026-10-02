@@ -10,6 +10,7 @@ stats are used here).
 
 from sqlalchemy.orm import Session
 
+from ..config import settings
 from ..db import SessionLocal
 from ..models import Team, TeamSeasonStats
 from .nhl_client import get_final_standings, get_standings_now
@@ -56,7 +57,12 @@ def ingest_team_stats_nhl(season: int) -> None:
         rows: dict[str, dict] = {}
         for abbr in teams:
             totals = current.get(abbr, _totals({}))
-            window = get_stat_window(season, int(totals["gamesPlayed"]), previous_season)
+            window = get_stat_window(
+                season,
+                int(totals["gamesPlayed"]),
+                previous_season,
+                settings.small_sample_games_threshold_nhl,
+            )
             window_mode = "current"
             if window.window_mode == "blended":
                 if not previous:

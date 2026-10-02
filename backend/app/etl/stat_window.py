@@ -19,8 +19,14 @@ class StatWindow:
     seasons_included: list[int]
 
 
-def get_stat_window(current_season: int, weeks_played_current_season: int, previous_season: int) -> StatWindow:
-    if weeks_played_current_season <= settings.small_sample_week_threshold:
+def get_stat_window(
+    current_season: int,
+    weeks_played_current_season: int,
+    previous_season: int,
+    threshold: int | None = None,
+) -> StatWindow:
+    limit = settings.small_sample_week_threshold if threshold is None else threshold
+    if weeks_played_current_season <= limit:
         return StatWindow(
             season=current_season,
             weeks_played=weeks_played_current_season,

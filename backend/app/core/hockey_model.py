@@ -15,6 +15,8 @@ from .game_model import clamp_prob, half_point_lines
 # games of evidence (football uses less because its scoring is less random per game).
 PRIOR_GAMES = 30.0
 MAX_GOALS = 30
+# Weighted games a team needs behind its ratings before the outlook stops flagging a small sample.
+LOW_SAMPLE_TEAM_GAMES = 15.0
 # Share of the strength edge that carries into overtime/shootout (0 = pure coin flip).
 OT_STRENGTH_WEIGHT = 0.5
 
