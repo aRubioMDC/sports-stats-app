@@ -1,6 +1,7 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
-import { useBoard, useCheatsheet, useConfig, useMatchup, useParlays } from "../api";
+import { useQueryClient } from "@tanstack/react-query";
+import { api, useBoard, useCheatsheet, useConfig, useMatchup, useParlays } from "../api";
 import { MatchupComparisonCard } from "../components/MatchupComparisonCard";
 import { HeadToHeadTable } from "../components/HeadToHeadTable";
 import { CheatsheetRowCard } from "../components/CheatsheetRowCard";
@@ -18,31 +19,56 @@ function formatPrice(price: number): string {
 
 export function GameDetail() {
   const { gameId } = useParams<{ gameId: string }>();
+  const numericGameId = gameId ? Number(gameId) : null;
   const [searchParams, setSearchParams] = useSearchParams();
   const tab: Tab = searchParams.get("tab") === "trends" ? "trends" : "overview";
+  const queryClient = useQueryClient();
 
   const [recentGamesTeam, setRecentGamesTeam] = useState<"home" | "away">("home");
 
-  const matchupQuery = useMatchup(gameId ? Number(gameId) : null);
+  const matchupQuery = useMatchup(numericGameId);
   const context = matchupQuery.data ?? null;
   const error = matchupQuery.isError ? "Could not load matchup context." : null;
 
   const game = context?.game ?? null;
   const boardQuery = useBoard(game?.season ?? null, game?.week ?? null);
   const cheatsheetQuery = useCheatsheet(0.5, 3, game?.season, game?.week, undefined, game != null);
-  const parlaysQuery = useParlays(gameId ? Number(gameId) : null, tab === "trends");
+  const parlaysQuery = useParlays(numericGameId, tab === "trends");
   const configQuery = useConfig();
   const isDayBased = configQuery.data?.period_unit === "day";
 
   const boardRow = useMemo(
-    () => boardQuery.data?.find((row) => row.game.id === Number(gameId)) ?? null,
-    [boardQuery.data, gameId]
+    () => boardQuery.data?.find((row) => row.game.id === numericGameId) ?? null,
+    [boardQuery.data, numericGameId]
   );
 
   const gamePropRows = useMemo(
-    () => (cheatsheetQuery.data ?? []).filter((row) => row.game_id === Number(gameId)).sort((a, b) => b.hit_rate - a.hit_rate),
-    [cheatsheetQuery.data, gameId]
+    () => (cheatsheetQuery.data ?? []).filter((row) => row.game_id === numericGameId).sort((a, b) => b.hit_rate - a.hit_rate),
+    [cheatsheetQuery.data, numericGameId]
   );
+
+  useEffect(() => {
+    if (game == null || numericGameId == null) return;
+
+    const stream = api.openScoresStream();
+
+    const onScoresRefresh = () => {
+      queryClient.invalidateQueries({ queryKey: ["matchup", numericGameId] });
+      queryClient.invalidateQueries({ queryKey: ["board", game.season, game.week] });
+      queryClient.invalidateQueries({ queryKey: ["games", game.season, game.week] });
+      queryClient.invalidateQueries({ queryKey: ["config"] });
+    };
+
+    stream.addEventListener("scores_refresh", onScoresRefresh);
+    stream.onerror = () => {
+      // EventSource reconnects automatically.
+    };
+
+    return () => {
+      stream.removeEventListener("scores_refresh", onScoresRefresh);
+      stream.close();
+    };
+  }, [game, numericGameId, queryClient]);
 
   const teamLogos = useTeamLogos();
 
