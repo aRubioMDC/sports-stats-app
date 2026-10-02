@@ -4,10 +4,27 @@ Extracted from repeated inline code in games.py, board.py, and matchup.py —
 see the SOLID audit notes on DRY violations for the before/after.
 """
 
+from datetime import datetime, timezone
+
 from sqlalchemy.orm import Query, Session
 
 from ..models import Game
 from ..schemas import GameOut
+
+
+def serialize_kickoff(value: datetime | None) -> str | None:
+    """Return an ISO timestamp in UTC so the browser can render it in the user's timezone.
+
+    The project stores `Game.kickoff` in a SQLAlchemy `DateTime` column, which comes back
+    from Postgres as a naive datetime. We therefore normalize those naive values as UTC when
+    serializing them to API clients, instead of relying on timezone metadata that the DB
+    schema does not retain.
+    """
+    if value is None:
+        return None
+    if value.tzinfo is None:
+        value = value.replace(tzinfo=timezone.utc)
+    return value.astimezone(timezone.utc).isoformat()
 
 
 def filter_by_sport_week(query: Query, sport: str, season: int, week: int) -> Query:
@@ -22,7 +39,7 @@ def game_to_schema(game: Game) -> GameOut:
         id=game.id,
         season=game.season,
         week=game.week,
-        kickoff=game.kickoff.isoformat() if game.kickoff else None,
+        kickoff=serialize_kickoff(game.kickoff),
         home_team=game.home_team,
         away_team=game.away_team,
         home_score=game.home_score,

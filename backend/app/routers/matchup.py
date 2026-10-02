@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 
 from ..core.betting_math import american_to_implied_prob
 from ..core.deps import valid_sport
-from ..core.query_helpers import game_result_for_team, game_to_schema
+from ..core.query_helpers import game_result_for_team, game_to_schema, serialize_kickoff
 from ..core.sport_registry import get_sport
 from ..db import get_db
 from ..models import Game, OddsEvent, OddsLine, Team, TeamSeasonStats
@@ -172,7 +172,7 @@ def _recent_games(db: Session, sport: str, team_id: int, exclude_game_id: int, l
             RecentGameOut(
                 season=g.season,
                 week=g.week,
-                kickoff=g.kickoff.isoformat() if g.kickoff else None,
+                kickoff=serialize_kickoff(g.kickoff),
                 opponent=opponent.abbreviation,
                 opponent_logo_url=opponent.logo_url,
                 is_home=is_home,
@@ -245,7 +245,7 @@ def get_matchup_context(game_id: int, sport: str = Depends(valid_sport), db: Ses
         HeadToHeadResult(
             season=g.season,
             week=g.week,
-            kickoff=g.kickoff.isoformat() if g.kickoff else None,
+            kickoff=serialize_kickoff(g.kickoff),
             home_team=g.home_team.abbreviation,
             away_team=g.away_team.abbreviation,
             home_score=g.home_score or 0,

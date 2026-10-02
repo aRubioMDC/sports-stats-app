@@ -5,7 +5,7 @@ so the rest of the app keeps working with trend-only data (see plan assumptions)
 """
 
 import re
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 import httpx
 from sqlalchemy import func
@@ -92,7 +92,12 @@ def _find_game_for_event(db: Session, event: dict) -> Game | None:
     if len(candidates) == 1:
         return candidates[0]
     try:
-        commence = datetime.fromisoformat(event["commence_time"].replace("Z", "+00:00")).replace(tzinfo=None)
+        commence = datetime.fromisoformat(event["commence_time"].replace("Z", "+00:00"))
+        if commence.tzinfo is None:
+            commence = commence.replace(tzinfo=timezone.utc)
+        else:
+            commence = commence.astimezone(timezone.utc)
+        commence = commence.replace(tzinfo=None)
     except (KeyError, ValueError):
         return candidates[0]
     return min(candidates, key=lambda g: abs((g.kickoff - commence).total_seconds()) if g.kickoff else float("inf"))

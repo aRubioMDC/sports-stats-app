@@ -1,12 +1,27 @@
 """Pull season schedule/results from nflverse and upsert Team + Game rows."""
 
-from datetime import datetime
+from datetime import datetime, timezone
+from zoneinfo import ZoneInfo
 
 import nflreadpy as nfl
 from sqlalchemy.orm import Session
 
 from ..db import SessionLocal
 from ..models import Game, Team
+
+NFL_TIMEZONE = ZoneInfo("America/New_York")
+
+
+def _normalize_kickoff(gameday: str | None, gametime: str | None) -> datetime | None:
+    """Store NFL kickoff as a UTC timestamp in the DB's naive DateTime column format."""
+    if not gameday:
+        return None
+    if gametime:
+        local_dt = datetime.strptime(f"{gameday} {gametime}", "%Y-%m-%d %H:%M")
+    else:
+        local_dt = datetime.strptime(gameday, "%Y-%m-%d")
+    aware_local = local_dt.replace(tzinfo=NFL_TIMEZONE)
+    return aware_local.astimezone(timezone.utc).replace(tzinfo=None)
 
 
 def upsert_teams(db: Session) -> dict[str, int]:
@@ -47,12 +62,7 @@ def _upsert_games_from_schedule(db: Session, schedule, team_ids: dict[str, int])
         game.game_type = row.get("game_type", "REG")
         gameday = row.get("gameday")
         gametime = row.get("gametime")
-        if gameday and gametime:
-            game.kickoff = datetime.strptime(f"{gameday} {gametime}", "%Y-%m-%d %H:%M")
-        elif gameday:
-            game.kickoff = datetime.strptime(gameday, "%Y-%m-%d")
-        else:
-            game.kickoff = None
+        game.kickoff = _normalize_kickoff(gameday, gametime)
         game.home_team_id = team_ids[home_abbr]
         game.away_team_id = team_ids[away_abbr]
         home_score, away_score = row.get("home_score"), row.get("away_score")

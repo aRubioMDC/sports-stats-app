@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session, joinedload
 
 from ..core.betting_math import american_to_implied_prob, devig_two_way, kelly_fraction
 from ..core.constants import CHEATSHEET_BATCH_FETCH_LIMIT, CHEATSHEET_MAX_ROWS, MIN_GAMES_FOR_TREND
+from ..core.query_helpers import serialize_kickoff
 from ..core.stats_math import wilson_interval
 from ..etl.ingest_odds import STAT_TO_PLAYER_MARKET
 from ..models import Game, Player, PlayerPropOdds, PlayerTrendSignal, PlayerWeeklyStat
@@ -275,7 +276,7 @@ def _get_cheatsheet_internal(
             next_game = next_game_by_team[signal.player.team_id]
             if next_game:
                 game_id = next_game.id
-                game_kickoff = next_game.kickoff.isoformat() if next_game.kickoff else None
+                game_kickoff = serialize_kickoff(next_game.kickoff)
                 is_home = next_game.home_team_id == signal.player.team_id
 
                 # Look up pre-calculated opponent defensive rank
@@ -444,7 +445,7 @@ def get_player_signal_rows(sport: str, player_id: int, db: Session) -> list[Chea
         opponent_abbr = None
         if next_game:
             game_id = next_game.id
-            game_kickoff = next_game.kickoff.isoformat() if next_game.kickoff else None
+            game_kickoff = serialize_kickoff(next_game.kickoff)
             is_home = next_game.home_team_id == player.team_id
             opponent_id = next_game.away_team_id if is_home else next_game.home_team_id
             opp_rank = opponent_ranks.get((opponent_id, current_season)) if opponent_id else None
