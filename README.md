@@ -116,13 +116,16 @@ The project has container and deployment artifacts in place, but there is no ful
 validated production deployment on a real public server yet. Local runs are the current
 verification baseline.
 
+Runtime deploy safety has been strengthened with `infra/scripts/post-deploy-smoke.sh`,
+which is now executed automatically by both deploy and rollback scripts.
+
 ## Next steps and known gaps
 The project is functionally working and the refactor is in good shape, but the following
 items remain open before calling the project closed or production-ready:
 
 - No real auth is implemented yet
 - No validated final deployment on a real server has been completed
-- Full production-release evidence (real deploy rehearsal + rollback proof + runtime smoke evidence) is not yet complete
+- Full production-release evidence on the target host (real deploy rehearsal + rollback proof + captured smoke logs) is not yet complete
 - The Fase 4 roadmap is not closed yet, including premium-candidate decisions and gating logic
 - The full refactor across all routes and layers is not considered finally complete
 - Several areas remain in active evolution rather than a single consolidated final version

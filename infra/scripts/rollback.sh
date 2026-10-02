@@ -16,8 +16,8 @@ echo "Rolling back stack to IMAGE_TAG=${TARGET_TAG}"
 IMAGE_TAG="${TARGET_TAG}" docker compose pull frontend backend
 IMAGE_TAG="${TARGET_TAG}" docker compose up -d --remove-orphans
 
-# Verify backend health after rollback before reporting success.
-docker compose exec -T backend python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health', timeout=5)"
+# Verify full runtime surface after rollback before reporting success.
+bash ./scripts/post-deploy-smoke.sh
 
 echo "Rollback successful: IMAGE_TAG=${TARGET_TAG}"
 docker compose ps

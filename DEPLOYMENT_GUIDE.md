@@ -37,6 +37,7 @@ Files this guide builds on (already generated in this repo):
 [infra/scripts/bootstrap-host.sh](infra/scripts/bootstrap-host.sh),
 [infra/scripts/deploy.sh](infra/scripts/deploy.sh),
 [infra/scripts/rollback.sh](infra/scripts/rollback.sh),
+[infra/scripts/post-deploy-smoke.sh](infra/scripts/post-deploy-smoke.sh),
 [infra/scripts/backup-db.sh](infra/scripts/backup-db.sh),
 [.github/workflows/docker-publish.yml](.github/workflows/docker-publish.yml).
 
@@ -304,6 +305,7 @@ hitrate/
     │   ├── bootstrap-host.sh    # one-time host setup (UFW, Docker, swap, fail2ban)
     │   ├── deploy.sh            # pull + recreate containers
     │   ├── rollback.sh          # roll back frontend/backend image tag quickly
+    │   ├── post-deploy-smoke.sh # runtime smoke checks via nginx (/ + /api)
     │   └── backup-db.sh         # nightly pg_dump of Supabase
     └── backups/                 # gitignored — local backup-db.sh output
 ```
@@ -756,14 +758,17 @@ up in section 31):
 cd ~/hitrate/infra
 ./scripts/deploy.sh
 ```
-This runs `docker compose pull && docker compose up -d --remove-orphans` then
-prunes dangling images. Only containers whose image actually changed get
-recreated; `alembic upgrade head` re-runs automatically on backend start
-(harmless no-op if there's nothing new to migrate).
+This runs `docker compose pull && docker compose up -d --remove-orphans`,
+prunes dangling images, and executes
+`scripts/post-deploy-smoke.sh` (API + SPA routing checks through nginx). Only
+containers whose image actually changed get recreated; `alembic upgrade head`
+re-runs automatically on backend start (harmless no-op if there's nothing new
+to migrate).
 
-**Validate success**: `docker compose images` shows updated `CREATED`
-timestamps for the images that changed; `docker compose logs backend` shows
-the Alembic line again confirming a clean restart.
+**Validate success**: the script exits 0, `[smoke] all smoke checks passed`
+appears in output, `docker compose images` shows updated `CREATED` timestamps
+for images that changed, and `docker compose logs backend` shows the Alembic
+line confirming a clean restart.
 
 **Common mistakes**: manually `docker pull`-ing individual images instead of
 using `docker compose pull` — works, but skips the `--remove-orphans`/compose
@@ -828,8 +833,9 @@ How to choose `<previous-image-tag>`:
 
 **Validate success**:
 1. Script exits 0.
-2. `docker compose ps` shows backend/frontend `Up`.
-3. `curl -I https://hitrate.app/api/health` returns `200`.
+2. Smoke output includes `[smoke] all smoke checks passed`.
+3. `docker compose ps` shows backend/frontend `Up`.
+4. `curl -I https://hitrate.app/api/health` returns `200`.
 
 ## 32. Security best practices
 
@@ -937,4 +943,7 @@ curl -I https://hitrate.app   # confirm HTTPS end-to-end
 
 # Day to day, after pushing to main (CI builds+publishes automatically):
 ./scripts/deploy.sh
+
+# Optional standalone runtime verification after deploy/rollback:
+./scripts/post-deploy-smoke.sh
 ```
