@@ -39,6 +39,7 @@ Files this guide builds on (already generated in this repo):
 [infra/scripts/rollback.sh](infra/scripts/rollback.sh),
 [infra/scripts/post-deploy-smoke.sh](infra/scripts/post-deploy-smoke.sh),
 [infra/scripts/release-rehearsal.sh](infra/scripts/release-rehearsal.sh),
+[infra/scripts/rehearsal-report.sh](infra/scripts/rehearsal-report.sh),
 [infra/scripts/backup-db.sh](infra/scripts/backup-db.sh),
 [.github/workflows/docker-publish.yml](.github/workflows/docker-publish.yml).
 
@@ -308,6 +309,7 @@ hitrate/
     │   ├── rollback.sh          # roll back frontend/backend image tag quickly
     │   ├── post-deploy-smoke.sh # runtime smoke checks via nginx (/ + /api)
     │   ├── release-rehearsal.sh # deploy/rollback/redeploy with evidence logs
+    │   ├── rehearsal-report.sh  # builds markdown report from rehearsal log
     │   └── backup-db.sh         # nightly pg_dump of Supabase
     └── backups/                 # gitignored — local backup-db.sh output
 ```
@@ -866,6 +868,18 @@ Output:
 1. Script exits 0.
 2. Output ends with `[rehearsal] COMPLETE`.
 3. Evidence file exists in `infra/rehearsals/`.
+
+To generate a concise markdown artifact from the raw log:
+
+```bash
+./scripts/rehearsal-report.sh ./rehearsals/release_rehearsal_<timestamp>.log
+```
+
+This writes `./rehearsals/release_rehearsal_<timestamp>.md` with:
+- pass/fail summary
+- all rehearsal step outcomes
+- smoke check lines
+- final `docker compose ps` section
 
 ## 32. Security best practices
 

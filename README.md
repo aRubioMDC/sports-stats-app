@@ -118,6 +118,8 @@ verification baseline.
 
 Runtime deploy safety has been strengthened with `infra/scripts/post-deploy-smoke.sh`,
 which is now executed automatically by both deploy and rollback scripts.
+Release rehearsal evidence can be summarized with
+`infra/scripts/rehearsal-report.sh`.
 
 ## Next steps and known gaps
 The project is functionally working and the refactor is in good shape, but the following
