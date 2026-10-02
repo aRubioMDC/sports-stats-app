@@ -109,6 +109,59 @@ class MatchupContextOut(BaseModel):
     away_recent_games: list[RecentGameOut] = []
 
 
+class WinProbabilityOut(BaseModel):
+    home: float  # normalized over decided games (ties are refunded in the moneyline)
+    away: float
+
+
+class MarginBucketOut(BaseModel):
+    label: str  # e.g. "4-7" or "15+" points
+    home: float  # P(home wins by this margin)
+    away: float
+
+
+class OverUnderLineOut(BaseModel):
+    line: float
+    over: float
+    under: float
+
+
+class SpreadLineOut(BaseModel):
+    home_line: float  # home spread, e.g. -3.5
+    home_cover: float
+    away_cover: float
+
+
+class MarketReferenceOut(BaseModel):
+    """De-vigged sportsbook prices for comparison only; None when no real line exists."""
+
+    home_win: float | None = None
+    away_win: float | None = None
+    total_point: float | None = None
+    total_over: float | None = None
+    spread_point: float | None = None
+
+
+class GamePredictionOut(BaseModel):
+    available: bool
+    reason: str | None = None
+    model: str | None = None
+    projected_home: float | None = None
+    projected_away: float | None = None
+    projected_total: float | None = None
+    league_games: float = 0
+    home_games: float = 0  # weighted real games behind each team's rating
+    away_games: float = 0
+    low_sample: bool = False
+    win: WinProbabilityOut | None = None
+    margin_buckets: list[MarginBucketOut] = []
+    totals: list[OverUnderLineOut] = []
+    home_team_totals: list[OverUnderLineOut] = []
+    away_team_totals: list[OverUnderLineOut] = []
+    spreads: list[SpreadLineOut] = []
+    market: MarketReferenceOut | None = None
+
+
 class TrendSignalOut(BaseModel):
     label: str
     hits: int

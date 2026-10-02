@@ -19,7 +19,7 @@ from .core.sport_registry import SPORTS
 from .config import settings
 from .db import SessionLocal, get_db
 from .models import AnalyticsEvent, Game
-from .routers import board, games, matchup, odds, players, teams, trends
+from .routers import board, games, matchup, odds, players, prediction, teams, trends
 from sqlalchemy.orm import Session
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
@@ -72,6 +72,7 @@ async def log_unhandled_exceptions(request: Request, exc: Exception):
 
 app.include_router(games.router, prefix="/api")
 app.include_router(matchup.router, prefix="/api")
+app.include_router(prediction.router, prefix="/api")
 app.include_router(players.router, prefix="/api")
 app.include_router(teams.router, prefix="/api")
 app.include_router(trends.router, prefix="/api")
