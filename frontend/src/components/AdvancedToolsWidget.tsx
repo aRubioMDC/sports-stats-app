@@ -1,6 +1,7 @@
 import { useState } from "react";
 import type { CheatsheetRow } from "../api";
 import { formatTrendLine, ordinal, STAT_LABELS } from "../lib/statLabels";
+import { getSignalBadges } from "../lib/signal-helpers";
 import { Select } from "./Select";
 
 // Fase 4 candidate: PREMIUM_CANDIDATE_FEATURES=["advanced_tools"] on the backend.
@@ -63,6 +64,7 @@ export function AdvancedToolsWidget({
         {rows.map((row, i) => {
           const teamLogo = teamLogos?.[row.team];
           const hitPercentage = Math.round(row.hit_rate * 100);
+          const confidenceRange = getSignalBadges(row)[0]?.confidenceRange;
           const opponentLine = row.opponent_team ? `${row.is_home ? "vs" : "@"} ${row.opponent_team}` : row.team;
 
           const isOver = row.direction !== "under";
@@ -104,7 +106,10 @@ export function AdvancedToolsWidget({
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-1.5 min-w-0">
                     <span className="shrink-0">🔥</span>
-                    <span className="text-white/70 truncate">Hit in {row.hits} of last {row.games} games</span>
+                    <span className="text-white/70 truncate">
+                      Hit in {row.hits} of last {row.games} games
+                      {confidenceRange && <span className="ml-1.5 text-white/35">({confidenceRange})</span>}
+                    </span>
                   </div>
                   <span className="font-bold text-white shrink-0">{hitPercentage}%</span>
                 </div>

@@ -5,6 +5,7 @@ import { api, useBoard, useCheatsheet, useConfig, useMatchup, useParlays } from 
 import { MatchupComparisonCard } from "../components/MatchupComparisonCard";
 import { HeadToHeadTable } from "../components/HeadToHeadTable";
 import { CheatsheetRowCard } from "../components/CheatsheetRowCard";
+import { SignalMark } from "../components/SignalMark";
 import { ProbBar } from "../components/ProbBar";
 import { TeamSnapshotCard } from "../components/TeamSnapshotCard";
 import { formatMarketTrendLine, formatTrendLine, pctColorClass } from "../lib/statLabels";
@@ -188,6 +189,7 @@ export function GameDetail() {
                       )}
                       {formatMarketTrendLine(trend)}
                       <span className={`ml-1 font-semibold ${pctColorClass(trend.hit_rate * 100)}`}>
+                        <SignalMark pct={trend.hit_rate * 100} />
                         {trend.hits}/{trend.games} ({Math.round(trend.hit_rate * 100)}%)
                       </span>
                     </span>

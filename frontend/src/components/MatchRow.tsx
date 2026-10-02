@@ -2,6 +2,7 @@ import { Link } from "react-router-dom";
 import type { BoardGame } from "../api";
 import { formatDateTimeInAppTimezone } from "../lib/period";
 import { formatMarketTrendLine, pctColorClass } from "../lib/statLabels";
+import { SignalMark } from "./SignalMark";
 import { FormDots } from "./FormDots";
 
 function formatKickoff(kickoff: string | null): string {
@@ -111,6 +112,7 @@ export function MatchRow({ row }: { row: BoardGame }) {
               <span className="font-semibold text-white/80">{trend.player_name}</span>
               <span className="text-white/50">{formatMarketTrendLine(trend)}</span>
               <span className={`font-semibold ${pctColorClass(trend.hit_rate * 100)}`}>
+                <SignalMark pct={trend.hit_rate * 100} />
                 {trend.hits}/{trend.games}
               </span>
             </div>

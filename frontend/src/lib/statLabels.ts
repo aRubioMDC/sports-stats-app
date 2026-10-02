@@ -47,3 +47,10 @@ export function pctColorClass(pct: number): string {
   return "text-rose-400";
 }
 
+/** Non-color twin of pctColorClass so the signal never relies on hue alone. */
+export function pctSignalMark(pct: number): { glyph: string; label: string } {
+  if (pct >= 70) return { glyph: "▲", label: "Strong" };
+  if (pct >= 50) return { glyph: "●", label: "Mixed" };
+  return { glyph: "▼", label: "Weak" };
+}
+

@@ -2,6 +2,7 @@ import { useEffect, useMemo } from "react";
 import { Link } from "react-router-dom";
 import type { CheatsheetRow } from "../api";
 import { formatTrendLine, ordinal, pctColorClass } from "../lib/statLabels";
+import { SignalMark } from "./SignalMark";
 import { useBankroll } from "../lib/bankroll";
 import { getConfidence, getKickoffLabel, getMatchupLabel, getSignalChecklist } from "../lib/signal-helpers";
 import type { SignalChecklistItem } from "../lib/signal-helpers";
@@ -151,6 +152,7 @@ export function TrendDetailModal({ row, onClose, onPrev, onNext, hasPrev, hasNex
             <h3 className="mb-3 text-sm font-semibold text-white/60">Recent Form</h3>
             <div className="flex items-baseline gap-3">
               <div className={`text-3xl font-black ${pctColorClass(row.hit_rate * 100)}`}>
+                <SignalMark pct={row.hit_rate * 100} />
                 {Math.round(row.hit_rate * 100)}%
               </div>
               <p className="text-white/80">
@@ -170,7 +172,10 @@ export function TrendDetailModal({ row, onClose, onPrev, onNext, hasPrev, hasNex
               {hasSplit && (
                 <div className="rounded-lg border border-white/10 bg-[#111620] p-4">
                   <h3 className="mb-3 text-sm font-semibold text-white/60">{row.is_home ? "Home" : "Away"} Split</h3>
-                  <div className={`text-2xl font-black ${pctColorClass(splitPct ?? 0)}`}>{splitPct}%</div>
+                  <div className={`text-2xl font-black ${pctColorClass(splitPct ?? 0)}`}>
+                    <SignalMark pct={splitPct ?? 0} />
+                    {splitPct}%
+                  </div>
                   <p className="mt-1 text-sm text-white/70">
                     {row.split_hits} of {row.split_games} {row.is_home ? "home" : "away"} games
                   </p>
@@ -179,7 +184,10 @@ export function TrendDetailModal({ row, onClose, onPrev, onNext, hasPrev, hasNex
               {hasH2h && (
                 <div className="rounded-lg border border-white/10 bg-[#111620] p-4">
                   <h3 className="mb-3 text-sm font-semibold text-white/60">vs {row.opponent_team ?? "Opponent"}</h3>
-                  <div className={`text-2xl font-black ${pctColorClass(h2hPct ?? 0)}`}>{h2hPct}%</div>
+                  <div className={`text-2xl font-black ${pctColorClass(h2hPct ?? 0)}`}>
+                    <SignalMark pct={h2hPct ?? 0} />
+                    {h2hPct}%
+                  </div>
                   <p className="mt-1 text-sm text-white/70">
                     {row.h2h_hits} of {row.h2h_games} past matchups
                   </p>
@@ -194,7 +202,10 @@ export function TrendDetailModal({ row, onClose, onPrev, onNext, hasPrev, hasNex
               {hasInjury && (
                 <div className="rounded-lg border border-white/10 bg-[#111620] p-4">
                   <h3 className="mb-3 text-sm font-semibold text-white/60">Without {row.without_player}</h3>
-                  <div className={`text-2xl font-black ${pctColorClass(injuryPct ?? 0)}`}>{injuryPct}%</div>
+                  <div className={`text-2xl font-black ${pctColorClass(injuryPct ?? 0)}`}>
+                    <SignalMark pct={injuryPct ?? 0} />
+                    {injuryPct}%
+                  </div>
                   <p className="mt-1 text-sm text-white/70">
                     {row.without_player_hits} of {row.without_player_games} games missed by teammate
                   </p>
