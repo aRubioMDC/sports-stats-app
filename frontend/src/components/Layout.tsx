@@ -1,9 +1,8 @@
 import { useEffect, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { api, getCurrentSport, setCurrentSport } from "../api";
+import { api, getCurrentSport, getSportIcon, setCurrentSport } from "../api";
 import type { Sport } from "../api";
 import { Select } from "./Select";
-import { useBankroll } from "../lib/bankroll";
 import { Footer } from "./Footer";
 
 function SportDropdown() {
@@ -29,26 +28,6 @@ function SportDropdown() {
   );
 }
 
-// Session-local bankroll input — feeds the Kelly-fraction stake suggestions
-// shown alongside real market edges. No accounts, no real money tracking.
-function BankrollInput() {
-  const { bankroll, setBankroll } = useBankroll();
-  return (
-    <label className="ml-auto flex items-center gap-1.5 text-xs text-white/50">
-      Bankroll
-      <span className="text-white/30">$</span>
-      <input
-        type="number"
-        min={0}
-        step={50}
-        value={bankroll}
-        onChange={(e) => setBankroll(Number(e.target.value))}
-        className="w-20 rounded-md border border-white/10 bg-white/5 px-2 py-1 text-white focus:border-emerald-400/40 focus:outline-none"
-      />
-    </label>
-  );
-}
-
 function Header() {
   const location = useLocation();
   const isActive = (to: string) => (to === "/" ? location.pathname === to : location.pathname.startsWith(to));
@@ -67,7 +46,8 @@ function Header() {
   return (
     <header className="sticky top-0 z-10 flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-white/10 bg-[#0b0d12]/95 px-4 py-3 backdrop-blur">
       <Link to="/" className="flex items-center gap-2 text-lg font-extrabold tracking-tight text-white">
-        <span>{getCurrentSport() === "nhl" ? "🏒" : "🏈"}</span> HitRate
+        <span aria-hidden>{getSportIcon(getCurrentSport())}</span>
+        <img src="/brand/logo-wordmark.svg" alt="HitRate" className="h-9 w-auto" />
       </Link>
       <SportDropdown />
       <nav className="flex items-center gap-1 rounded-full border border-white/10 bg-white/3 p-1 sm:ml-4">
@@ -75,7 +55,6 @@ function Header() {
         {navLink("/trends", "Trends")}
         {navLink("/cheatsheet", "Cheatsheet")}
       </nav>
-      <BankrollInput />
     </header>
   );
 }

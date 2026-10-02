@@ -160,12 +160,21 @@ def _period_bounds(db: Session, sport: str, season: int) -> tuple[int, int]:
 
 
 def _recommended_period(db: Session, sport: str, season: int, fallback: int) -> int:
-    """Prefer the next scheduled period, then the latest seen one, then fallback.
+    """Prefer the current period when it has games, then the next scheduled period,
+    then the latest seen one, then fallback.
 
-    This keeps Home/board aligned with real scheduled data instead of surfacing an
-    empty period when adapter.current_week() is outside the loaded schedule window.
+    For day-based sports (NHL), this avoids skipping "today" once some games have
+    already started; users still expect to see today's full slate.
     """
     now = datetime.now(timezone.utc)
+
+    has_current_games = (
+        db.query(Game.id)
+        .filter(Game.sport == sport, Game.season == season, Game.week == fallback)
+        .first()
+    )
+    if has_current_games:
+        return fallback
 
     upcoming = (
         db.query(Game.week)

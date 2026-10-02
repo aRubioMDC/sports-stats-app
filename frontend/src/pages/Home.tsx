@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
-import { api, useBoard, useByeTeams, useCheatsheet, useConfig, useParlays, useTeams, useTrendGroups } from "../api";
+import { api, useBoard, useCheatsheet, useConfig, useParlays, useTeams, useTrendGroups } from "../api";
 import { CheatsheetRowCard } from "../components/CheatsheetRowCard";
 import { MatchRow } from "../components/MatchRow";
 import { CheatsheetGroups } from "../components/CheatsheetGroups";
@@ -38,24 +38,12 @@ function MatchRowSkeleton() {
   );
 }
 
-function formatRelativeTime(iso: string | null): string {
-  if (!iso) return "never";
-  const seconds = Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 1000));
-  if (seconds < 60) return "just now";
-  const minutes = Math.floor(seconds / 60);
-  if (minutes < 60) return `${minutes}m ago`;
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}h ago`;
-  return `${Math.floor(hours / 24)}d ago`;
-}
-
 export function Home() {
   const queryClient = useQueryClient();
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("scheduled");
   const [selectedWeek, setSelectedWeek] = useState<number | null>(null);
   const [selectedGameId, setSelectedGameId] = useState<number | null>(null);
   const [showAllGames, setShowAllGames] = useState(false);
-  const [refreshing, setRefreshing] = useState(false);
   const [teamSearch, setTeamSearch] = useState<string>("");
 
   // React Query hooks for automatic caching across navigation
@@ -84,7 +72,6 @@ export function Home() {
 
   // Priority 1: Load board first (games grid - what user sees)
   const boardQuery = useBoard(season, week);
-  const byeTeamsQuery = useByeTeams(season, week);
   
   // Priority 2: Load cheatsheet after board is ready (Trending Today)
   // Lower thresholds to get more results from available signals
@@ -183,10 +170,6 @@ export function Home() {
     return mapping;
   }, [teamsQuery.data]);
 
-  // Real bye-week teams for this week, filtered server-side to active
-  // franchises only (excludes stale relocated-team rows like old OAK/SD/STL).
-  const byeTeams = byeTeamsQuery.data ?? [];
-
   // Auto-select first game when board loads
   useEffect(() => {
     if (board.length > 0 && !selectedGameId) {
@@ -231,7 +214,6 @@ export function Home() {
     }
     return diversified;
   }, [sortedTrends]);
-  const lastUpdated = configQuery.data?.last_updated ?? null;
   const error = configQuery.error || boardQuery.error ? "Could not load data" : null;
   const loading = configQuery.isLoading || boardQuery.isLoading;
 
@@ -267,21 +249,6 @@ export function Home() {
     api.trackEvent("parlays_switch_game", { gameId });
   };
 
-  const handleRefresh = async () => {
-    if (season === null || week === null || refreshing) return;
-    setRefreshing(true);
-    api.trackEvent("refresh_scores_click");
-    try {
-      await api.refreshScores();
-      // Invalidate board cache to force refetch
-      await queryClient.invalidateQueries({ queryKey: ["board", season, week] });
-    } catch {
-      // Error handled by UI (will show in error state if needed)
-    } finally {
-      setRefreshing(false);
-    }
-  };
-
   useEffect(() => {
     if (season === null || week === null) return;
 
@@ -313,53 +280,6 @@ export function Home() {
           <h1 className="text-4xl font-black tracking-tight text-white">{periodLabel(configQuery.data, week)}</h1>
           <p className="mt-1 text-sm text-white/60">Matchups with context that matters most</p>
         </div>
-        {season !== null && <span className="text-sm font-semibold text-white/40">{season} Season</span>}
-      </div>
-
-      {byeTeams.length > 0 && (
-        <div className="mb-4 flex flex-wrap items-center gap-2 text-xs text-white/50">
-          <span className="font-semibold uppercase tracking-wide text-white/40">Bye:</span>
-          {byeTeams.map((team) => (
-            <span key={team.id} className="flex items-center gap-1">
-              {team.logo_url ? (
-                <img src={team.logo_url} alt={team.abbreviation} className="h-4 w-4 object-contain" />
-              ) : (
-                <span className="h-4 w-4 rounded-full" style={{ backgroundColor: team.primary_color }} />
-              )}
-              {team.abbreviation}
-            </span>
-          ))}
-        </div>
-      )}
-      
-      {/* Updated badge + Refresh */}
-      <div className="mb-4 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="flex h-2 w-2 items-center">
-            <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-400">
-              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
-            </span>
-          </div>
-          <p className="text-xs text-white/50">Updated {formatRelativeTime(lastUpdated)}</p>
-        </div>
-        <button
-          type="button"
-          onClick={handleRefresh}
-          disabled={refreshing}
-          className="inline-flex items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-semibold text-white/70 transition hover:border-emerald-400/40 hover:bg-white/10 hover:text-emerald-400 disabled:opacity-50"
-        >
-          {refreshing ? (
-            <>
-              <span className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-white/30 border-t-white/80" />
-              Refreshing…
-            </>
-          ) : (
-            <>
-              <span>↻</span>
-              Refresh Scores
-            </>
-          )}
-        </button>
       </div>
 
       {/* Week/Date Navigation */}

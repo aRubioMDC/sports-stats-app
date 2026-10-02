@@ -56,9 +56,11 @@ class NhlAdapter:
         run_all_nhl()
 
     def refresh_scores(self) -> None:
-        # Cheap/frequent path (called every 15 min) — just the days immediately
-        # around "now"; the full season is already covered by ingest_all().
-        ingest_schedule_nhl(max_pages=2)
+        # Cheap/frequent path — anchor on the local calendar day so we keep the
+        # full "today" slate (not just future-only slices from a moving "now"
+        # cursor), which is what users expect on Home.
+        local_today = datetime.now(timezone.utc).astimezone(APP_TIMEZONE).date().isoformat()
+        ingest_schedule_nhl(start_date=local_today, max_pages=2)
 
     def matchup_stat_rows(self) -> list[tuple[str, str, str]]:
         return STAT_ROW_DEFS
