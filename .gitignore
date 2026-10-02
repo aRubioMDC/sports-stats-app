@@ -10,6 +10,7 @@ pip_install.log
 pip_out.log
 infra/cloudflared/creds/
 infra/backups/
+infra/rehearsals/
 .vscode/
 playwright-report/
 test-results/

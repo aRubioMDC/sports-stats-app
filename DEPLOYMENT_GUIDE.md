@@ -38,6 +38,7 @@ Files this guide builds on (already generated in this repo):
 [infra/scripts/deploy.sh](infra/scripts/deploy.sh),
 [infra/scripts/rollback.sh](infra/scripts/rollback.sh),
 [infra/scripts/post-deploy-smoke.sh](infra/scripts/post-deploy-smoke.sh),
+[infra/scripts/release-rehearsal.sh](infra/scripts/release-rehearsal.sh),
 [infra/scripts/backup-db.sh](infra/scripts/backup-db.sh),
 [.github/workflows/docker-publish.yml](.github/workflows/docker-publish.yml).
 
@@ -306,6 +307,7 @@ hitrate/
     │   ├── deploy.sh            # pull + recreate containers
     │   ├── rollback.sh          # roll back frontend/backend image tag quickly
     │   ├── post-deploy-smoke.sh # runtime smoke checks via nginx (/ + /api)
+    │   ├── release-rehearsal.sh # deploy/rollback/redeploy with evidence logs
     │   └── backup-db.sh         # nightly pg_dump of Supabase
     └── backups/                 # gitignored — local backup-db.sh output
 ```
@@ -836,6 +838,34 @@ How to choose `<previous-image-tag>`:
 2. Smoke output includes `[smoke] all smoke checks passed`.
 3. `docker compose ps` shows backend/frontend `Up`.
 4. `curl -I https://hitrate.app/api/health` returns `200`.
+
+## 31.2 Release rehearsal with evidence
+
+**Why**: before declaring release-readiness complete, run one full rehearsal
+cycle (deploy -> rollback -> deploy) and keep a timestamped artifact with
+all command output.
+
+Use [infra/scripts/release-rehearsal.sh](infra/scripts/release-rehearsal.sh):
+
+```bash
+cd ~/hitrate/infra
+chmod +x scripts/release-rehearsal.sh   # one-time
+./scripts/release-rehearsal.sh <known-good-rollback-tag> [forward-tag]
+```
+
+Examples:
+- `./scripts/release-rehearsal.sh e00cb7d`
+- `./scripts/release-rehearsal.sh e00cb7d 1f6b805`
+
+Output:
+- A log file is created under `infra/rehearsals/` with a timestamped name.
+- The log contains deploy, rollback, post-deploy smoke output, and final
+  `docker compose ps` status.
+
+**Validate success**:
+1. Script exits 0.
+2. Output ends with `[rehearsal] COMPLETE`.
+3. Evidence file exists in `infra/rehearsals/`.
 
 ## 32. Security best practices
 
