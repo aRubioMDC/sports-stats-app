@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 
 class TeamOut(BaseModel):
@@ -8,8 +8,7 @@ class TeamOut(BaseModel):
     primary_color: str
     logo_url: str
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class GameOut(BaseModel):
@@ -23,8 +22,7 @@ class GameOut(BaseModel):
     away_score: int | None
     status: str
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class StatRow(BaseModel):
