@@ -229,8 +229,8 @@ function ModelOutlook({
             aria-label={`Model win probability: ${away} ${pct(win.away)}, ${home} ${pct(win.home)}`}
             className="flex h-full gap-0.5 overflow-hidden rounded-full bg-white/10"
           >
-            <div style={{ width: `${win.away * 100}%`, backgroundColor: awayTeam.primary_color }} />
-            <div style={{ width: `${win.home * 100}%`, backgroundColor: homeTeam.primary_color }} />
+            <div className="ring-1 ring-inset ring-white/20" style={{ width: `${win.away * 100}%`, backgroundColor: awayTeam.primary_color }} />
+            <div className="ring-1 ring-inset ring-white/20" style={{ width: `${win.home * 100}%`, backgroundColor: homeTeam.primary_color }} />
           </div>
           {market?.away_win != null && (
             <div
