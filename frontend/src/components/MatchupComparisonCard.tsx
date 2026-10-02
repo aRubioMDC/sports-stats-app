@@ -56,7 +56,7 @@ export function MatchupComparisonCard({
               </div>
               <div className="text-xs text-white/40">{ordinal(row.away_rank)}</div>
             </div>
-            <div className="w-48 shrink-0 text-center text-xs font-semibold uppercase tracking-wide text-white/60">
+            <div className="w-32 shrink-0 px-1 text-center text-[11px] font-semibold uppercase tracking-wide text-white/60 sm:w-48 sm:text-xs">
               {row.label}
             </div>
             <div className="flex-1 text-center">

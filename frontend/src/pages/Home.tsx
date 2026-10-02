@@ -159,6 +159,8 @@ export function Home() {
       .map(({ gameTime, ...row }) => row);
   }, [trendGroups?.opponent_rank]);
 
+  const hasAdvancedTools = sortedInjuryRows.length >= 3 || sortedOpponentRows.length >= 3;
+
   // Build team logos mapping
   const teamLogos = useMemo(() => {
     if (!teamsQuery.data) return {};
@@ -505,7 +507,7 @@ export function Home() {
       )}
 
       {/* Advanced Tools */}
-      {trendGroups && (
+      {trendGroups && hasAdvancedTools && (
         <div className="mt-12">
           <AdvancedToolsWidget injuryRows={sortedInjuryRows} opponentRankRows={sortedOpponentRows} teamLogos={teamLogos} />
         </div>

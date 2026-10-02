@@ -27,7 +27,6 @@ function GroupColumn({
         <span>{title}</span>
       </div>
       <div className="flex flex-col gap-2">
-        {rows.length === 0 && <span className="text-xs text-white/30">Not enough data yet.</span>}
         {rows.map((row, i) => {
           const teamLogo = teamLogos?.[row.team];
           const [hits, games] =
@@ -87,10 +86,20 @@ export function CheatsheetGroups({
     { icon: "👥", title: "100% Team Form", rows: teamForm },
   ];
 
-  const totalPages = Math.ceil(categories.length / PAGE_SIZE);
+  const categoriesWithData = categories.filter((cat) => cat.rows.length > 0);
+  if (categoriesWithData.length === 0) {
+    return (
+      <div className="rounded-xl border border-dashed border-white/10 bg-white/5 px-4 py-6 text-center">
+        <h2 className="text-lg font-bold text-white">Cheatsheets</h2>
+        <p className="mt-1 text-sm text-white/55">No trending categories are available for this period yet.</p>
+      </div>
+    );
+  }
+
+  const totalPages = Math.ceil(categoriesWithData.length / PAGE_SIZE);
   const [page, setPage] = useState(0);
   const [direction, setDirection] = useState(1);
-  const visible = categories.slice(page * PAGE_SIZE, page * PAGE_SIZE + PAGE_SIZE);
+  const visible = categoriesWithData.slice(page * PAGE_SIZE, page * PAGE_SIZE + PAGE_SIZE);
 
   const goToPage = (next: number) => {
     setDirection(next > page ? 1 : -1);

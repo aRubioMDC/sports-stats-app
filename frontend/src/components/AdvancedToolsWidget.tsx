@@ -73,8 +73,11 @@ export function AdvancedToolsWidget({
           const edgeRank = isOver ? teamCount - rank + 1 : rank;
           const statLabel = STAT_LABELS[row.stat_name] ?? row.stat_name;
           const opponentAbbr = row.opponent_team ?? "Opponent";
+          const withoutGames = row.without_player_games ?? 0;
+          const withoutHits = row.without_player_hits ?? 0;
+          const withoutPlayer = row.without_player ?? "key teammate";
           const injuryPercentage =
-            row.without_player_games ? Math.round(((row.without_player_hits ?? 0) / row.without_player_games) * 100) : 0;
+            withoutGames > 0 ? Math.round((withoutHits / withoutGames) * 100) : 0;
 
           return (
             <div key={i} className="group rounded-lg border border-white/10 bg-[#12141a] p-4 transition hover:border-emerald-400/40">
@@ -110,7 +113,7 @@ export function AdvancedToolsWidget({
                     <div className="flex items-center gap-1.5 min-w-0">
                       <span className="shrink-0">🩹</span>
                       <span className="text-white/70 truncate">
-                        Hit in {row.without_player_hits} of last {row.without_player_games} games without <span className="font-semibold text-white">{row.without_player}</span>
+                        Hit in {withoutHits} of last {withoutGames} games without <span className="font-semibold text-white">{withoutPlayer}</span>
                       </span>
                     </div>
                     <span className="font-bold text-white shrink-0">{injuryPercentage}%</span>

@@ -54,18 +54,36 @@ export function GameDetail() {
 
   if (error) return <p className="p-8 text-red-400">{error}</p>;
   if (!context) return <p className="p-8 text-white/50">Loading matchup…</p>;
+  if (!game) return <p className="p-8 text-white/50">Game details are not available right now.</p>;
 
   const { stat_rows, head_to_head, window_mode } = context;
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8">
-      <Link to="/" className="text-sm text-sky-400 hover:underline">
-        ← Back to schedule
+      <Link
+        to="/"
+        className="inline-flex items-center gap-1.5 text-sm font-medium text-sky-400 transition hover:text-sky-300 hover:underline"
+      >
+        <svg
+          aria-hidden="true"
+          viewBox="0 0 20 20"
+          fill="none"
+          className="h-4 w-4"
+        >
+          <path
+            d="M12.5 4.5L7 10l5.5 5.5"
+            stroke="currentColor"
+            strokeWidth="1.8"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
+        <span>Back to schedule</span>
       </Link>
 
-      <div className="mt-4 mb-6 flex items-center justify-between">
+      <div className="mb-6 mt-4 flex items-center justify-between">
         <h1 className="text-xl font-bold text-white">
-          {game!.away_team.abbreviation} @ {game!.home_team.abbreviation}
+          {game.away_team.abbreviation} @ {game.home_team.abbreviation}
         </h1>
         {window_mode === "blended" && (
           <span className="rounded-full bg-amber-500/20 px-3 py-1 text-xs font-semibold text-amber-300">
@@ -80,7 +98,9 @@ export function GameDetail() {
         <button
           onClick={() => setTab("overview")}
           className={`px-4 py-2 text-sm font-semibold transition ${
-            tab === "overview" ? "border-b-2 border-emerald-400 text-white" : "text-white/50 hover:text-white"
+            tab === "overview"
+              ? "border-b-2 border-emerald-400 text-white"
+              : "text-white/55 hover:text-white"
           }`}
         >
           Overview
@@ -88,7 +108,9 @@ export function GameDetail() {
         <button
           onClick={() => setTab("trends")}
           className={`px-4 py-2 text-sm font-semibold transition ${
-            tab === "trends" ? "border-b-2 border-emerald-400 text-white" : "text-white/50 hover:text-white"
+            tab === "trends"
+              ? "border-b-2 border-emerald-400 text-white"
+              : "text-white/55 hover:text-white"
           }`}
         >
           Trends & Props{gamePropRows.length > 0 && ` (${gamePropRows.length})`}
@@ -101,9 +123,9 @@ export function GameDetail() {
           {boardRow && (
             <div className="flex gap-3">
               <TeamSnapshotCard
-                abbreviation={game!.away_team.abbreviation}
-                logoUrl={game!.away_team.logo_url}
-                primaryColor={game!.away_team.primary_color}
+                abbreviation={game.away_team.abbreviation}
+                logoUrl={game.away_team.logo_url}
+                primaryColor={game.away_team.primary_color}
                 form={boardRow.away_form}
                 ppg={boardRow.away_stats?.points_per_game}
                 ppgRank={boardRow.away_stats?.points_per_game_rank}
@@ -112,9 +134,9 @@ export function GameDetail() {
                 isDayBased={isDayBased}
               />
               <TeamSnapshotCard
-                abbreviation={game!.home_team.abbreviation}
-                logoUrl={game!.home_team.logo_url}
-                primaryColor={game!.home_team.primary_color}
+                abbreviation={game.home_team.abbreviation}
+                logoUrl={game.home_team.logo_url}
+                primaryColor={game.home_team.primary_color}
                 form={boardRow.home_form}
                 ppg={boardRow.home_stats?.points_per_game}
                 ppgRank={boardRow.home_stats?.points_per_game_rank}
@@ -155,10 +177,10 @@ export function GameDetail() {
             </h2>
             {stat_rows.length > 0 ? (
               <MatchupComparisonCard
-                homeAbbr={game!.home_team.abbreviation}
-                awayAbbr={game!.away_team.abbreviation}
-                homeColor={game!.home_team.primary_color}
-                awayColor={game!.away_team.primary_color}
+                homeAbbr={game.home_team.abbreviation}
+                awayAbbr={game.away_team.abbreviation}
+                homeColor={game.home_team.primary_color}
+                awayColor={game.away_team.primary_color}
                 rows={stat_rows}
               />
             ) : (
@@ -177,25 +199,25 @@ export function GameDetail() {
                   <div className="mb-2 text-xs font-semibold text-white/40">Moneyline</div>
                   {context.moneyline.home.fair_prob != null && (
                     <ProbBar
-                      label={`${game!.home_team.abbreviation} to win`}
+                      label={`${game.home_team.abbreviation} to win`}
                       pct={context.moneyline.home.fair_prob}
-                      color={game!.home_team.primary_color}
+                      color={game.home_team.primary_color}
                     />
                   )}
                   {context.moneyline.away.fair_prob != null && (
                     <ProbBar
-                      label={`${game!.away_team.abbreviation} to win`}
+                      label={`${game.away_team.abbreviation} to win`}
                       pct={context.moneyline.away.fair_prob}
-                      color={game!.away_team.primary_color}
+                      color={game.away_team.primary_color}
                     />
                   )}
                   <div className="mt-2 flex justify-between text-xs text-white/50">
                     <span>
-                      {game!.home_team.abbreviation} best: {formatPrice(context.moneyline.home.best_price)} (
+                      {game.home_team.abbreviation} best: {formatPrice(context.moneyline.home.best_price)} (
                       {context.moneyline.home.best_bookmaker})
                     </span>
                     <span>
-                      {game!.away_team.abbreviation} best: {formatPrice(context.moneyline.away.best_price)} (
+                      {game.away_team.abbreviation} best: {formatPrice(context.moneyline.away.best_price)} (
                       {context.moneyline.away.best_bookmaker})
                     </span>
                   </div>
@@ -207,11 +229,11 @@ export function GameDetail() {
                   <div className="mb-2 text-xs font-semibold text-white/40">Spread</div>
                   <div className="flex justify-between text-sm text-white/80">
                     <span>
-                      {game!.home_team.abbreviation} {context.spread.point > 0 ? "+" : ""}
+                      {game.home_team.abbreviation} {context.spread.point > 0 ? "+" : ""}
                       {context.spread.point} ({formatPrice(context.spread.home.best_price)})
                     </span>
                     <span>
-                      {game!.away_team.abbreviation} {-context.spread.point > 0 ? "+" : ""}
+                      {game.away_team.abbreviation} {-context.spread.point > 0 ? "+" : ""}
                       {-context.spread.point} ({formatPrice(context.spread.away.best_price)})
                     </span>
                   </div>
@@ -286,7 +308,7 @@ export function GameDetail() {
                       recentGamesTeam === "away" ? "bg-white/15 text-white" : "text-white/50 hover:text-white"
                     }`}
                   >
-                    {game!.away_team.abbreviation}
+                    {game.away_team.abbreviation}
                   </button>
                   <button
                     onClick={() => setRecentGamesTeam("home")}
@@ -294,7 +316,7 @@ export function GameDetail() {
                       recentGamesTeam === "home" ? "bg-white/15 text-white" : "text-white/50 hover:text-white"
                     }`}
                   >
-                    {game!.home_team.abbreviation}
+                    {game.home_team.abbreviation}
                   </button>
                 </div>
               </div>
@@ -362,7 +384,7 @@ export function GameDetail() {
                 </span>
                 <span className="text-xs text-white/40">
                   {(() => {
-                    const seasonsAgo = seasonStartYear(game!.season) - seasonStartYear(head_to_head[0].season);
+                    const seasonsAgo = seasonStartYear(game.season) - seasonStartYear(head_to_head[0].season);
                     if (seasonsAgo <= 0) return "This season";
                     if (seasonsAgo === 1) return "Last season";
                     return `${seasonsAgo} seasons ago`;

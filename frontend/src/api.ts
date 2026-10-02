@@ -235,7 +235,9 @@ function trackEvent(eventName: string, metadata?: Record<string, unknown>): void
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ event_name: eventName, sport: getCurrentSport(), metadata }),
-  }).catch(() => undefined);
+  }).catch((err) => {
+    console.warn("trackEvent failed", { eventName, err });
+  });
 }
 
 export interface PlayerInfo {
