@@ -8,3 +8,5 @@ dist/
 .env
 pip_install.log
 pip_out.log
+infra/cloudflared/creds/
+infra/backups/

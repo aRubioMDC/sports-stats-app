@@ -1,0 +1,17 @@
+# Sample Cloudflare Tunnel config. Generated for real by:
+#   cloudflared tunnel create hitrate
+#   cloudflared tunnel route dns hitrate hitrate.app
+# Copy this file to infra/cloudflared/config.yml and fill in the real tunnel id.
+# The matching credentials JSON (created by `tunnel create`) goes in
+# infra/cloudflared/creds/<TUNNEL_ID>.json — that whole folder is gitignored.
+
+tunnel: <TUNNEL_ID>
+credentials-file: /etc/cloudflared/creds/<TUNNEL_ID>.json
+
+ingress:
+  # nginx is the only service cloudflared talks to; it's reached by its
+  # docker-compose service name over the shared "hitrate_net" bridge network.
+  - hostname: hitrate.app
+    service: http://nginx:80
+  # Required catch-all — cloudflared refuses to start without one.
+  - service: http_status:404
