@@ -1,0 +1,31 @@
+name: Promote dev to test
+
+on:
+  workflow_run:
+    workflows: ["Dev CI/CD"]
+    types: [completed]
+
+permissions:
+  contents: write
+
+jobs:
+  promote:
+    if: ${{ github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'dev' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Configure git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Promote dev into test (fast-forward only)
+        run: |
+          git fetch origin dev test
+          git checkout -B test origin/test
+          git merge --ff-only origin/dev
+          git push origin test
