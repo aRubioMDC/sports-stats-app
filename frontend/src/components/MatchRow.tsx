@@ -1,12 +1,13 @@
 import { Link } from "react-router-dom";
 import type { BoardGame } from "../api";
+import { formatDateTimeInAppTimezone } from "../lib/period";
 import { formatMarketTrendLine, pctColorClass } from "../lib/statLabels";
 import { FormDots } from "./FormDots";
 
 function formatKickoff(kickoff: string | null): string {
   if (!kickoff) return "TBD";
   const date = new Date(kickoff);
-  return date.toLocaleString(undefined, {
+  return formatDateTimeInAppTimezone(date, {
     weekday: "short",
     month: "short",
     day: "numeric",

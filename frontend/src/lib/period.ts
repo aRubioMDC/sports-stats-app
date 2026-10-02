@@ -1,5 +1,15 @@
 import type { Config } from "../api";
 
+export const APP_TIMEZONE = "America/Mexico_City";
+
+export function formatDateInAppTimezone(date: Date, options: Intl.DateTimeFormatOptions): string {
+  return date.toLocaleDateString(undefined, { ...options, timeZone: APP_TIMEZONE });
+}
+
+export function formatDateTimeInAppTimezone(date: Date, options: Intl.DateTimeFormatOptions): string {
+  return date.toLocaleString(undefined, { ...options, timeZone: APP_TIMEZONE });
+}
+
 /** Turns a raw `week` bucket into the real calendar date it represents, for
  * sports with no native week concept (period_unit === "day") — null when the
  * sport doesn't work this way (e.g. NFL) or the anchor isn't available yet. */
@@ -15,7 +25,7 @@ export function periodDate(config: Config | undefined, week: number | null): Dat
 export function periodLabel(config: Config | undefined, week: number | null): string {
   const date = periodDate(config, week);
   if (date) {
-    return date.toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" });
+    return formatDateInAppTimezone(date, { weekday: "long", month: "long", day: "numeric" });
   }
   return `Week ${week ?? ""}`;
 }
@@ -24,7 +34,7 @@ export function periodLabel(config: Config | undefined, week: number | null): st
 export function periodLabelShort(config: Config | undefined, week: number | null): string {
   const date = periodDate(config, week);
   if (date) {
-    return date.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+    return formatDateInAppTimezone(date, { month: "short", day: "numeric" });
   }
   return `Wk ${week ?? ""}`;
 }

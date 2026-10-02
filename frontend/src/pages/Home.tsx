@@ -71,6 +71,12 @@ export function Home() {
   const isDayBased = configQuery.data?.period_unit === "day";
   const maxPeriod = isDayBased ? 400 : NFL_WEEK_COUNT;
 
+  useEffect(() => {
+    if (isDayBased) {
+      setStatusFilter("all");
+    }
+  }, [isDayBased]);
+
   // Priority 1: Load board first (games grid - what user sees)
   const boardQuery = useBoard(season, week);
   const byeTeamsQuery = useByeTeams(season, week);

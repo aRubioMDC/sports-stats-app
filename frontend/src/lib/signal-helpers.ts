@@ -1,4 +1,5 @@
 import type { CheatsheetRow } from "../api";
+import { formatDateTimeInAppTimezone } from "./period";
 import { ordinal, STAT_LABELS } from "./statLabels";
 
 /** Pure signal-interpretation helpers extracted from Trends.tsx and
@@ -144,7 +145,13 @@ export function getKickoffLabel(row: CheatsheetRow): string | null {
   if (!row.game_kickoff) return null;
   const d = new Date(row.game_kickoff);
   if (Number.isNaN(d.getTime())) return null;
-  return d.toLocaleString(undefined, { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+  return formatDateTimeInAppTimezone(d, {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
 }
 
 export interface SignalBadge {

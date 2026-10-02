@@ -7,7 +7,7 @@ import { CheatsheetRowCard } from "../components/CheatsheetRowCard";
 import { ProbBar } from "../components/ProbBar";
 import { TeamSnapshotCard } from "../components/TeamSnapshotCard";
 import { formatMarketTrendLine, formatTrendLine, pctColorClass } from "../lib/statLabels";
-import { seasonStartYear } from "../lib/period";
+import { formatDateInAppTimezone, seasonStartYear } from "../lib/period";
 import { useTeamLogos } from "../lib/useTeamLogos";
 
 type Tab = "overview" | "trends";
@@ -304,7 +304,7 @@ export function GameDetail() {
                     <div className="flex items-center gap-2">
                       <span className="text-xs text-white/40">
                         {isDayBased && g.kickoff
-                          ? new Date(g.kickoff).toLocaleDateString(undefined, { month: "short", day: "numeric" })
+                          ? formatDateInAppTimezone(new Date(g.kickoff), { month: "short", day: "numeric" })
                           : `Wk ${g.week}`}
                       </span>
                       <span className="text-white/50">{g.is_home ? "vs" : "@"}</span>
@@ -348,7 +348,7 @@ export function GameDetail() {
                 </span>
                 <span className="text-white/40">
                   {isDayBased && head_to_head[0].kickoff
-                    ? new Date(head_to_head[0].kickoff).toLocaleDateString(undefined, {
+                    ? formatDateInAppTimezone(new Date(head_to_head[0].kickoff), {
                         year: "numeric",
                         month: "short",
                         day: "numeric",

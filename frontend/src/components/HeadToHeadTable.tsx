@@ -1,4 +1,5 @@
 import type { HeadToHeadResult } from "../api";
+import { formatDateInAppTimezone } from "../lib/period";
 
 export function HeadToHeadTable({ results, isDayBased }: { results: HeadToHeadResult[]; isDayBased?: boolean }) {
   if (results.length === 0) {
@@ -18,7 +19,7 @@ export function HeadToHeadTable({ results, isDayBased }: { results: HeadToHeadRe
           <tr key={`${r.season}-${r.week}`} className="border-t border-white/5">
             <td className="py-2 text-white/70">
               {isDayBased && r.kickoff
-                ? new Date(r.kickoff).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" })
+                ? formatDateInAppTimezone(new Date(r.kickoff), { year: "numeric", month: "short", day: "numeric" })
                 : `${r.season} · Wk ${r.week}`}
             </td>
             <td className="py-2 text-white/70">{r.away_team} @ {r.home_team}</td>
