@@ -3,7 +3,8 @@
 ingest_schedules.py.
 """
 
-from datetime import date, datetime
+from datetime import date, datetime, timezone
+from zoneinfo import ZoneInfo
 
 from sqlalchemy import text
 from sqlalchemy.orm import Session
@@ -11,6 +12,8 @@ from sqlalchemy.orm import Session
 from ..db import SessionLocal
 from ..models import Game, Team
 from .nhl_client import get_schedule, get_standings_now
+
+APP_TIMEZONE = ZoneInfo("America/Mexico_City")
 
 # Real NHL API game ids are numeric (e.g. 2026020053); prefixed so they can share
 # Game.nflverse_game_id's unique string column with NFL's own string game ids.
@@ -52,6 +55,12 @@ def _week_number(game_date: date, season: int) -> int:
     return (game_date - season_anchor_date(season)).days
 
 
+def _local_date_from_utc_naive(value: datetime) -> date:
+    # Stored kickoff values are UTC-naive in DB; convert to app-local day buckets.
+    utc_aware = value.replace(tzinfo=timezone.utc)
+    return utc_aware.astimezone(APP_TIMEZONE).date()
+
+
 def _upsert_game(
     db: Session,
     game: dict,
@@ -69,7 +78,12 @@ def _upsert_game(
         # don't belong in the regular-season picture (see game_type comment
         # on the Game model: only "REG"/"POST" are meant to reach standings).
         return
-    kickoff = datetime.fromisoformat(game["startTimeUTC"].replace("Z", "+00:00")).replace(tzinfo=None)
+    kickoff = datetime.fromisoformat(game["startTimeUTC"].replace("Z", "+00:00"))
+    if kickoff.tzinfo is None:
+        kickoff = kickoff.replace(tzinfo=timezone.utc)
+    else:
+        kickoff = kickoff.astimezone(timezone.utc)
+    kickoff = kickoff.replace(tzinfo=None)
     season = int(game["season"])
     home_id, away_id = team_ids[home_abbr], team_ids[away_abbr]
 
@@ -87,7 +101,7 @@ def _upsert_game(
         db.add(row)
         games_by_external_id[external_id] = row
 
-    week = _week_number(kickoff.date(), season)
+    week = _week_number(_local_date_from_utc_naive(kickoff), season)
     key = (season, week, home_id, away_id)
     # Nudge forward on the rare occasion two distinct real NHL game ids land on
     # the same (season, week, home, away) bucket (e.g. a suspended-and-resumed

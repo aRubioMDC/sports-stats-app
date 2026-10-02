@@ -7,12 +7,15 @@ from actual game logs are still fully live.
 """
 
 from datetime import datetime, timezone
+from zoneinfo import ZoneInfo
 
 from ..core.cache import ttl_cache
 from ..core.constants import CACHE_TTL_LONG
 from ..etl.compute_trends_nhl import STAT_NAMES
 from ..etl.ingest_schedules_nhl import _week_number, ingest_schedule_nhl, season_anchor_date
 from ..etl.run_all_nhl import current_nhl_season, run_all_nhl
+
+APP_TIMEZONE = ZoneInfo("America/Mexico_City")
 
 STAT_ROW_DEFS: list[tuple[str, str, str]] = [
     ("Points Percentage", "points_per_game", "points_per_game_rank"),
@@ -40,7 +43,8 @@ class NhlAdapter:
     def current_week(self) -> int:
         # The real day-of-season index (see period_anchor_date) — the frontend
         # turns this back into an actual calendar date for display.
-        return _week_number(datetime.now(timezone.utc).date(), self.current_season())
+        local_today = datetime.now(timezone.utc).astimezone(APP_TIMEZONE).date()
+        return _week_number(local_today, self.current_season())
 
     def previous_season(self, season: int) -> int:
         return season - 10001  # 20262027 -> 20252026, not season - 1 (== 20262026, not a real season)
