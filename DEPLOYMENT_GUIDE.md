@@ -36,6 +36,7 @@ Files this guide builds on (already generated in this repo):
 [infra/.env.example](infra/.env.example),
 [infra/scripts/bootstrap-host.sh](infra/scripts/bootstrap-host.sh),
 [infra/scripts/deploy.sh](infra/scripts/deploy.sh),
+[infra/scripts/rollback.sh](infra/scripts/rollback.sh),
 [infra/scripts/backup-db.sh](infra/scripts/backup-db.sh),
 [.github/workflows/docker-publish.yml](.github/workflows/docker-publish.yml).
 
@@ -302,6 +303,7 @@ hitrate/
     ├── scripts/
     │   ├── bootstrap-host.sh    # one-time host setup (UFW, Docker, swap, fail2ban)
     │   ├── deploy.sh            # pull + recreate containers
+    │   ├── rollback.sh          # roll back frontend/backend image tag quickly
     │   └── backup-db.sh         # nightly pg_dump of Supabase
     └── backups/                 # gitignored — local backup-db.sh output
 ```
@@ -802,6 +804,32 @@ freshly recreated containers with a newer `CREATED` time.
 `docker compose pull` fails with `unauthorized` on the box — either make them
 public (recommended here) or set up `docker login ghcr.io` with a
 read-only PAT on the box (extra secret to manage, avoided by this guide).
+
+## 31.1 Rollback procedure (fast path)
+
+**Why**: when a deploy regresses behavior, recovery should be one command and
+must include a post-rollback health check.
+
+Use [infra/scripts/rollback.sh](infra/scripts/rollback.sh):
+
+```bash
+cd ~/hitrate/infra
+chmod +x scripts/rollback.sh   # one-time
+./scripts/rollback.sh <previous-image-tag>
+```
+
+Examples:
+- `./scripts/rollback.sh e00cb7d`
+- `./scripts/rollback.sh latest` (not ideal, only for emergencies)
+
+How to choose `<previous-image-tag>`:
+1. Prefer a known-good Git commit SHA tag published by CI.
+2. Keep a short release note in your ops log with deployed SHA per rollout.
+
+**Validate success**:
+1. Script exits 0.
+2. `docker compose ps` shows backend/frontend `Up`.
+3. `curl -I https://hitrate.app/api/health` returns `200`.
 
 ## 32. Security best practices
 
