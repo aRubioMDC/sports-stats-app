@@ -14,12 +14,13 @@ from ..schemas import (
     WinProbabilityOut,
 )
 from . import game_model as gm
+from . import hockey_model as hm
 from .cache import ttl_cache
 from .constants import CACHE_TTL_MEDIUM
 from .sport_registry import get_sport
 
-# NFL only for now; other sports fall back to the market-odds panel until their model exists.
-MODELLED_SPORTS = {"nfl"}
+# Sports with a statistical model; others fall back to the market-odds panel.
+MODELLED_SPORTS = {"nfl", "nhl"}
 PREVIOUS_SEASON_WEIGHT = 0.5
 
 
@@ -60,6 +61,45 @@ def _line_out(rows: list[tuple[float, float, float]]) -> list[OverUnderLineOut]:
     return [OverUnderLineOut(line=line, over=round(over, 3), under=round(under, 3)) for line, over, under in rows]
 
 
+def _hockey_prediction(
+    mu_home: float,
+    mu_away: float,
+    games: tuple[float, float, float],
+    market_total_point: float | None,
+    market_spread_point: float | None,
+) -> GamePredictionOut:
+    league_games, home_games, away_games = games
+    mean_total = mu_home + mu_away
+    dist = hm.final_margin_distribution(mu_home, mu_away)
+    win_home, win_away = hm.win_probabilities(dist)
+    total_lines = _with_extra_line(hm.total_lines(mean_total), market_total_point)
+    spread_lines = _with_extra_line(hm.PUCK_HOME_LINES, market_spread_point)
+
+    return GamePredictionOut(
+        available=True,
+        model="attack-defense ratings with Poisson goals",
+        projected_home=round(mu_home, 1),
+        projected_away=round(mu_away, 1),
+        projected_total=round(mean_total, 1),
+        league_games=round(league_games, 1),
+        home_games=round(home_games, 1),
+        away_games=round(away_games, 1),
+        low_sample=min(home_games, away_games) < gm.LOW_SAMPLE_TEAM_GAMES,
+        win=WinProbabilityOut(home=round(win_home, 3), away=round(win_away, 3)),
+        margin_buckets=[
+            MarginBucketOut(label=label, home=round(h, 3), away=round(a, 3))
+            for label, h, a in hm.margin_bucket_probs(dist)
+        ],
+        totals=_line_out(hm.over_under(mean_total, total_lines)),
+        home_team_totals=_line_out(hm.over_under(mu_home, hm.team_lines(mu_home))),
+        away_team_totals=_line_out(hm.over_under(mu_away, hm.team_lines(mu_away))),
+        spreads=[
+            SpreadLineOut(home_line=line, home_cover=round(h, 3), away_cover=round(a, 3))
+            for line, h, a in hm.spread_cover(dist, spread_lines)
+        ],
+    )
+
+
 @ttl_cache(CACHE_TTL_MEDIUM)
 def build_prediction(
     db: Session,
@@ -82,13 +122,24 @@ def build_prediction(
 
     home = gm.team_rating(results, game.home_team_id)
     away = gm.team_rating(results, game.away_team_id)
+    home_games = home.games if home else 0.0
+    away_games = away.games if away else 0.0
+
+    if sport == "nhl":
+        mu_home, mu_away = gm.project_points(home, away, league, prior_games=hm.PRIOR_GAMES)
+        return _hockey_prediction(
+            mu_home,
+            mu_away,
+            (league.games, home_games, away_games),
+            market_total_point,
+            market_spread_point,
+        )
+
     mu_home, mu_away = gm.project_points(home, away, league)
     mean_margin = mu_home - mu_away
     mean_total = mu_home + mu_away
 
     win_home, win_away = gm.win_probabilities(mean_margin, league.margin_sd)
-    home_games = home.games if home else 0.0
-    away_games = away.games if away else 0.0
 
     total_lines = _with_extra_line(gm.half_point_lines(mean_total), market_total_point)
     spread_lines = _with_extra_line(gm.SPREAD_HOME_LINES, market_spread_point)

@@ -112,11 +112,20 @@ def test_prediction_unknown_game_returns_404():
     assert client.get("/api/nfl/games/999999999/prediction").status_code == 404
 
 
-def test_prediction_unavailable_for_unmodelled_sport():
+def test_nhl_prediction_contract_is_coherent():
     rows = _board_for("nhl")
     if not rows:
         pytest.skip("No NHL games available for current recommended period")
 
     resp = client.get(f"/api/nhl/games/{rows[0]['game']['id']}/prediction")
     assert resp.status_code == 200
-    assert resp.json()["available"] is False
+    body = resp.json()
+    if not body["available"]:
+        assert body["reason"]
+        return
+
+    assert body["win"]["home"] + body["win"]["away"] == pytest.approx(1.0, abs=0.01)
+    assert 2.0 < body["projected_total"] < 10.0
+    for line in body["totals"] + body["home_team_totals"] + body["away_team_totals"]:
+        assert line["over"] + line["under"] == pytest.approx(1.0, abs=0.01)
+    assert [b["label"] for b in body["margin_buckets"]] == ["1", "2", "3+"]
