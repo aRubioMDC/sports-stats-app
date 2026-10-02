@@ -216,6 +216,8 @@ export function GameDetail() {
                 awayAbbr={game.away_team.abbreviation}
                 homeColor={game.home_team.primary_color}
                 awayColor={game.away_team.primary_color}
+                homeLogo={game.home_team.logo_url}
+                awayLogo={game.away_team.logo_url}
                 rows={stat_rows}
               />
             ) : (

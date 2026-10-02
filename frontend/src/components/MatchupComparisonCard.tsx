@@ -18,34 +18,44 @@ function ordinal(n: number): string {
   return `${n}${s[(v - 20) % 10] || s[v] || s[0]}`;
 }
 
+function TeamBanner({ abbr, color, logoUrl }: { abbr: string; color: string; logoUrl: string }) {
+  return (
+    <div
+      className="flex flex-1 items-center justify-center gap-3 text-lg font-bold tracking-wide text-white"
+      style={{ backgroundColor: color }}
+    >
+      {logoUrl && (
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white/90 p-1">
+          <img src={logoUrl} alt="" className="h-full w-full object-contain" />
+        </span>
+      )}
+      {abbr}
+    </div>
+  );
+}
+
 export function MatchupComparisonCard({
   homeAbbr,
   awayAbbr,
   homeColor,
   awayColor,
+  homeLogo,
+  awayLogo,
   rows,
 }: {
   homeAbbr: string;
   awayAbbr: string;
   homeColor: string;
   awayColor: string;
+  homeLogo: string;
+  awayLogo: string;
   rows: StatRow[];
 }) {
   return (
     <div className="overflow-hidden rounded-xl border border-white/10 bg-[#12141a]">
       <div className="flex h-14">
-        <div
-          className="flex flex-1 items-center justify-center text-lg font-bold tracking-wide text-white"
-          style={{ backgroundColor: awayColor }}
-        >
-          {awayAbbr}
-        </div>
-        <div
-          className="flex flex-1 items-center justify-center text-lg font-bold tracking-wide text-white"
-          style={{ backgroundColor: homeColor }}
-        >
-          {homeAbbr}
-        </div>
+        <TeamBanner abbr={awayAbbr} color={awayColor} logoUrl={awayLogo} />
+        <TeamBanner abbr={homeAbbr} color={homeColor} logoUrl={homeLogo} />
       </div>
       <div>
         {rows.map((row) => (
