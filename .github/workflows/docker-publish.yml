@@ -22,8 +22,14 @@ jobs:
       - name: Install backend dependencies
         run: pip install -r backend/requirements.txt
 
+      - name: Install security audit tooling
+        run: pip install pip-audit
+
       - name: Backend syntax check
         run: python -m compileall backend/app
+
+      - name: Backend dependency audit
+        run: pip-audit -r backend/requirements.txt
 
       - name: Backend smoke tests (optional, requires CI_DATABASE_URL secret)
         if: env.CI_DATABASE_URL != ''
@@ -49,6 +55,10 @@ jobs:
 
       - name: Frontend build
         run: npm run build
+        working-directory: frontend
+
+      - name: Frontend type check
+        run: npx tsc --noEmit
         working-directory: frontend
 
   build-and-push:
@@ -87,11 +97,42 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
+  scan-images:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: read
+      security-events: write
+    strategy:
+      matrix:
+        image: [frontend, backend]
+    steps:
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Lowercase owner
+        id: owner
+        run: echo "name=${GITHUB_REPOSITORY_OWNER,,}" >> "$GITHUB_OUTPUT"
+
+      - name: Scan image with Trivy
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: ${{ env.REGISTRY }}/${{ steps.owner.outputs.name }}/hitrate-${{ matrix.image }}:${{ github.sha }}
+          format: table
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+          exit-code: '1'
+
   # Runs on the self-hosted runner installed on the home PC (see DEPLOYMENT_GUIDE.md
   # section 31) — the runner polls GitHub outbound, so no inbound port is opened
   # for this to work.
   deploy:
-    needs: build-and-push
+    needs: scan-images
     runs-on: self-hosted
     steps:
       - name: Pull latest images and restart containers
