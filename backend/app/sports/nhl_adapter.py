@@ -1,9 +1,9 @@
 """NHL adapter: wraps app.etl's NHL pipeline behind the SportAdapter contract —
 the second sport proving out the multi-sport architecture.
 
-Odds ingestion is intentionally not wired up for NHL yet (team-name matching
-and market keys would need their own NHL-specific pass) — real trend signals
-from actual game logs are still fully live.
+Game odds (moneyline/spread/total) are ingested by run_all_nhl via the shared,
+throttled ingest_odds; NHL player-prop odds are intentionally not wired up.
+Real trend signals from actual game logs are fully live regardless.
 """
 
 from datetime import datetime, timezone

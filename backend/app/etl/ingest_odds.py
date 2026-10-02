@@ -4,7 +4,9 @@ Degrades gracefully: if the API key is missing or a request fails, this is a no-
 so the rest of the app keeps working with trend-only data (see plan assumptions).
 """
 
+import logging
 import re
+import unicodedata
 from datetime import datetime, timedelta, timezone
 
 import httpx
@@ -15,8 +17,21 @@ from ..config import settings
 from ..db import SessionLocal
 from ..models import Game, OddsEvent, OddsLine, Player, PlayerPropOdds, Team
 
+logger = logging.getLogger(__name__)
+
 SPORT_KEY = "americanfootball_nfl"
+# The Odds API sport key per sport we ingest game odds for.
+ODDS_API_SPORT_KEYS = {"nfl": SPORT_KEY, "nhl": "icehockey_nhl"}
 MARKETS = "h2h,spreads,totals"
+
+# Each game-odds pull costs 3 credits (3 markets x 1 region) against a 500/month
+# free tier shared by every sport, so pulls are throttled: not more often than
+# this, and only while a game is about to start.
+GAME_ODDS_MIN_REFRESH_HOURS = 12
+GAME_ODDS_LOOKAHEAD_HOURS = 72
+# Process-local memory of the last pull attempt, so a pull that matched no game
+# (e.g. a naming mismatch) is not retried on every ETL run.
+_last_game_odds_attempt: dict[str, datetime] = {}
 
 # Maps our stat names to The Odds API's player-prop market keys.
 STAT_TO_PLAYER_MARKET = {
@@ -41,14 +56,43 @@ def _normalize_name(name: str) -> str:
     return re.sub(r"[^a-z0-9 ]", "", name.lower()).strip()
 
 
-def _resolve_team(db: Session, name: str) -> Team | None:
+def normalize_team_name(name: str) -> str:
+    """Lowercase, accent-free, punctuation-free key ("Montréal Canadiens" == "Montreal Canadiens")."""
+    stripped = unicodedata.normalize("NFKD", name).encode("ascii", "ignore").decode("ascii")
+    return re.sub(r"[^a-z0-9 ]", "", stripped.lower()).strip()
+
+
+def team_name_matches(odds_name: str, team_name: str) -> bool:
+    """True when the odds provider's team name is our team name, ignoring accents and
+    case, or ends with it (our name may be just the nickname, e.g. "Bruins")."""
+    odds_key = normalize_team_name(odds_name)
+    team_key = normalize_team_name(team_name)
+    if not odds_key or not team_key:
+        return False
+    return odds_key == team_key or odds_key.endswith(f" {team_key}")
+
+
+def should_pull_game_odds(
+    last_fetch: datetime | None,
+    next_kickoff: datetime | None,
+    now: datetime,
+) -> bool:
+    """Throttle rule: skip when odds were pulled recently or no game starts soon."""
+    if last_fetch is not None and now - last_fetch < timedelta(hours=GAME_ODDS_MIN_REFRESH_HOURS):
+        return False
+    if next_kickoff is None or next_kickoff > now + timedelta(hours=GAME_ODDS_LOOKAHEAD_HOURS):
+        return False
+    return True
+
+
+def _resolve_team(db: Session, sport: str, name: str) -> Team | None:
     """
     Team.name isn't unique — relocated franchises can leave stale alias rows
     with the same display name (see board.py's active-team-ids note on old
     LAR/OAK/SD/STL aliases) — so a plain equality lookup can return >1 row.
     Prefers whichever alias actually has games in the most recent season.
     """
-    teams = db.query(Team).filter(Team.sport == "nfl", Team.name == name).all()
+    teams = [t for t in db.query(Team).filter(Team.sport == sport).all() if team_name_matches(name, t.name or "")]
     if not teams:
         return None
     if len(teams) == 1:
@@ -62,7 +106,7 @@ def _resolve_team(db: Session, name: str) -> Team | None:
     )
 
 
-def _find_game_for_event(db: Session, event: dict) -> Game | None:
+def _find_game_for_event(db: Session, sport: str, event: dict) -> Game | None:
     """
     Matches an odds-provider event to our Game row by home+away team full name
     (not the previous `team_name[:3]` truncation, which silently produced wrong
@@ -73,14 +117,15 @@ def _find_game_for_event(db: Session, event: dict) -> Game | None:
     Falls back to the schedule row whose kickoff is closest to the event's
     commence_time when a team's home/away games happen to collide.
     """
-    home_team = _resolve_team(db, event["home_team"])
-    away_team = _resolve_team(db, event["away_team"])
+    home_team = _resolve_team(db, sport, event["home_team"])
+    away_team = _resolve_team(db, sport, event["away_team"])
     if home_team is None or away_team is None:
+        logger.warning("odds: no %s team match for %s @ %s", sport, event.get("away_team"), event.get("home_team"))
         return None
     candidates = (
         db.query(Game)
         .filter(
-            Game.sport == "nfl",
+            Game.sport == sport,
             Game.home_team_id == home_team.id,
             Game.away_team_id == away_team.id,
             Game.status != "final",
@@ -103,12 +148,30 @@ def _find_game_for_event(db: Session, event: dict) -> Game | None:
     return min(candidates, key=lambda g: abs((g.kickoff - commence).total_seconds()) if g.kickoff else float("inf"))
 
 
-def ingest_odds() -> None:
-    if not settings.odds_api_key:
+def ingest_odds(sport: str = "nfl") -> None:
+    """Game odds (moneyline/spread/total) for one sport. No-op without an API key,
+    when throttled (see should_pull_game_odds), or for sports without an odds feed."""
+    if not settings.odds_api_key or sport not in ODDS_API_SPORT_KEYS:
         return
     db: Session = SessionLocal()
     try:
-        url = f"{settings.odds_api_base_url}/sports/{SPORT_KEY}/odds"
+        now = datetime.utcnow()
+        last_fetch = (
+            db.query(func.max(OddsEvent.fetched_at)).join(Game, Game.id == OddsEvent.game_id).filter(Game.sport == sport).scalar()
+        )
+        last_attempt = _last_game_odds_attempt.get(sport)
+        if last_attempt is not None and (last_fetch is None or last_attempt > last_fetch):
+            last_fetch = last_attempt
+        next_kickoff = (
+            db.query(func.min(Game.kickoff))
+            .filter(Game.sport == sport, Game.status != "final", Game.kickoff.isnot(None), Game.kickoff >= now - timedelta(hours=6))
+            .scalar()
+        )
+        if not should_pull_game_odds(last_fetch, next_kickoff, now):
+            return
+        _last_game_odds_attempt[sport] = now
+
+        url = f"{settings.odds_api_base_url}/sports/{ODDS_API_SPORT_KEYS[sport]}/odds"
         params = {
             "apiKey": settings.odds_api_key,
             "regions": "us",
@@ -121,9 +184,15 @@ def ingest_odds() -> None:
 
         for event in events:
             try:
-                game = _find_game_for_event(db, event)
+                game = _find_game_for_event(db, sport, event)
                 if game is None:
                     continue
+                # Odds outcomes are matched back to teams by Team.name (see routers/matchup.py),
+                # so store our own spelling rather than the provider's.
+                outcome_names = {
+                    event["home_team"]: game.home_team.name,
+                    event["away_team"]: game.away_team.name,
+                }
 
                 # Reconcile against both unique constraints explicitly (game_id
                 # and external_event_id) instead of a single-column ON CONFLICT —
@@ -156,7 +225,7 @@ def ingest_odds() -> None:
                                     odds_event_id=odds_event.id,
                                     bookmaker=bookmaker["key"],
                                     market=market["key"],
-                                    outcome_name=outcome["name"],
+                                    outcome_name=outcome_names.get(outcome["name"], outcome["name"]),
                                     price=outcome["price"],
                                     point=outcome.get("point"),
                                 )

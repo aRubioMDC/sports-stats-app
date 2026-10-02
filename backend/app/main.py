@@ -23,6 +23,8 @@ from .routers import board, games, matchup, odds, players, prediction, teams, tr
 from sqlalchemy.orm import Session
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
+# httpx logs full request URLs at INFO, which would leak the odds API key (sent as a query param).
+logging.getLogger("httpx").setLevel(logging.WARNING)
 logger = logging.getLogger("hitrate")
 
 scheduler = BackgroundScheduler(
